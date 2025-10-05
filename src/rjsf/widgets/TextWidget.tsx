@@ -10,14 +10,18 @@ export default function TextWidget({
   onChange,
   placeholder,
 }: WidgetProps) {
+  const val = typeof value === "string" ? value : value ?? "";
   return (
     <Input
       id={id}
-      value={value ?? ""}
+      value={val}
       required={required}
       disabled={disabled || readonly}
       placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        const v = e.target.value;
+        onChange(v === "" ? undefined : v);
+      }}
     />
   );
 }

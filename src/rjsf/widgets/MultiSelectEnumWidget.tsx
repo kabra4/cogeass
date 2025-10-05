@@ -1,4 +1,4 @@
-import { type WidgetProps } from "@rjsf/utils";
+import { type WidgetProps, type RJSFSchema } from "@rjsf/utils";
 import {
   Select,
   SelectContent,
@@ -7,21 +7,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Simple multi-select using Radix Select opened repeatedly. For large sets, consider a
-// dedicated combobox; for PoC, this toggles membership on selection.
 export default function MultiSelectEnumWidget({
   id,
   value,
-  required,
   disabled,
   readonly,
   options,
   onChange,
   placeholder,
+  schema, // <-- Destructure 'schema' from props
 }: WidgetProps) {
   const current: string[] = Array.isArray(value) ? value.map(String) : [];
-  const enumOptions =
-    (options.enumOptions as Array<{ value: any; label: string }>) || [];
+
+  const getEnumOptions = () => {
+    if (options.enumOptions && options.enumOptions.length > 0) {
+      return options.enumOptions as Array<{ value: any; label: string }>;
+    }
+    // Fallback for array-of-enum schemas
+    const itemsSchema = schema.items as RJSFSchema;
+    if (itemsSchema && Array.isArray(itemsSchema.enum)) {
+      return itemsSchema.enum.map((val) => ({
+        label: String(val),
+        value: val,
+      }));
+    }
+    return [];
+  };
+
+  const enumOptions = getEnumOptions();
 
   const toggle = (val: string) => {
     const has = current.includes(val);
@@ -45,7 +58,7 @@ export default function MultiSelectEnumWidget({
       >
         <SelectTrigger id={id} className="w-full">
           <SelectValue placeholder={placeholder ?? "Select one or more..."}>
-            {display}
+            {display || <span>&nbsp;</span>}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>

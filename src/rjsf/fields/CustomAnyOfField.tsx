@@ -46,16 +46,36 @@ export default function CustomAnyOfField<
 
   const [selectedKey, setSelectedKey] = useState(getInitialKey);
 
+  // *** MODIFIED LOGIC START ***
   const handleSelection = (key: string) => {
-    if (key !== selectedKey) {
-      onChange(undefined);
+    setSelectedKey(key); // Always update the state to reflect dropdown selection
+
+    const schemaForSelected = (schema.properties as any)?.[key];
+    const isEmptyObjectSchema =
+      schemaForSelected?.type === "object" &&
+      !Object.keys(schemaForSelected.properties || {}).length;
+
+    // If the new selection corresponds to an empty object (like 'open'),
+    // set its value immediately to satisfy the schema.
+    if (isEmptyObjectSchema) {
+      onChange({ [key]: {} });
+    } else {
+      // Otherwise, if the user is switching to a different, non-empty option,
+      // clear the form data to avoid carrying over old values.
+      if (key !== selectedKey) {
+        onChange(undefined);
+      }
     }
-    setSelectedKey(key);
   };
 
-  const selectedSchema = (schema.properties as any)?.[selectedKey] as
-    | RJSFSchema
-    | undefined;
+  const selectedSchema = (schema.properties as any)?.[selectedKey];
+
+  // A flag to determine if we should render a sub-form.
+  const isEffectivelyEmpty =
+    selectedSchema?.type === "object" &&
+    !Object.keys(selectedSchema.properties || {}).length;
+  // *** MODIFIED LOGIC END ***
+
   const selectedFormData = formData
     ? (formData as any)[selectedKey]
     : undefined;
@@ -90,11 +110,13 @@ export default function CustomAnyOfField<
         </SelectContent>
       </Select>
 
-      {selectedSchema && (
+      {/* *** MODIFIED RENDERING LOGIC *** */}
+      {/* Only render the SchemaField if the selected option is NOT an empty object */}
+      {!isEffectivelyEmpty && selectedSchema && (
         <div className="pl-1 pt-2">
           <SchemaField
             {...props}
-            name={selectedKey} // Pass the name of the property
+            name={selectedKey}
             schema={selectedSchema}
             idSchema={registry.schemaUtils.toIdSchema(
               selectedSchema,
@@ -105,7 +127,7 @@ export default function CustomAnyOfField<
             )}
             formData={selectedFormData}
             onChange={onSubChange}
-            required={true} // The selected option is always considered required
+            required={true}
           />
         </div>
       )}

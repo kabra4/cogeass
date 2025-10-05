@@ -1,7 +1,63 @@
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import type { ObjectFieldTemplateProps } from "@rjsf/utils";
+import type { ObjectFieldTemplateProps, RJSFSchema } from "@rjsf/utils";
 import { cn } from "@/lib/utils";
+
+/**
+ * Recursively checks if a property's schema or any of its children match
+ * the search query.
+ * @param propName - The name of the property being checked.
+ * @param propSchema - The JSON schema for the property.
+ * @param query - The user's search string (in lowercase).
+ * @returns `true` if a match is found, otherwise `false`.
+ */
+const propertyMatchesQuery = (
+  propName: string,
+  propSchema: RJSFSchema | boolean,
+  query: string
+): boolean => {
+  // Base case: if schema is a boolean or falsy, it can't match.
+  if (typeof propSchema !== "object") {
+    return false;
+  }
+
+  // 1. Check the property's own name, title, and description
+  if (propName.toLowerCase().includes(query)) return true;
+  if (propSchema.title?.toLowerCase().includes(query)) return true;
+  if (propSchema.description?.toLowerCase().includes(query)) return true;
+
+  // 2. If it's an object, recurse into its children's properties
+  if (propSchema.type === "object" && propSchema.properties) {
+    for (const [key, value] of Object.entries(propSchema.properties)) {
+      if (propertyMatchesQuery(key, value as RJSFSchema, query)) {
+        return true;
+      }
+    }
+  }
+
+  // 3. If it's an array, check the schema of its items
+  if (propSchema.type === "array" && propSchema.items) {
+    const itemsSchema = Array.isArray(propSchema.items)
+      ? propSchema.items[0]
+      : propSchema.items;
+    // We pass the parent's name to give context, as item schemas often lack their own name.
+    if (propertyMatchesQuery(propName, itemsSchema, query)) {
+      return true;
+    }
+  }
+
+  // 4. Handle oneOf/anyOf by checking each sub-schema
+  const subschemas = propSchema.oneOf || propSchema.anyOf;
+  if (Array.isArray(subschemas)) {
+    for (const subschema of subschemas) {
+      if (propertyMatchesQuery(propName, subschema as RJSFSchema, query)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
 
 export default function CompactObjectFieldTemplate(
   props: ObjectFieldTemplateProps<any, any, any>
@@ -42,7 +98,8 @@ export default function CompactObjectFieldTemplate(
     const filtered = rawProps
       .filter((p) => {
         if (!filterQ) return true;
-        return p.name?.toLowerCase().includes(filterQ);
+        const propSchema = p.content.props.schema as RJSFSchema;
+        return propertyMatchesQuery(p.name, propSchema, filterQ);
       })
       .filter((p) => {
         const isReq = requiredKeys.includes(p.name);

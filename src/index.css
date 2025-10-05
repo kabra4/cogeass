@@ -133,9 +133,14 @@
     height: 100%;
   }
   body {
+    overflow: hidden;
     @apply bg-background text-foreground;
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
   }
+}
+
+#root {
+  overflow: hidden;
 }

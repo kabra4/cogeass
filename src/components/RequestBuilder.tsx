@@ -103,7 +103,7 @@ export default function RequestBuilder() {
   return (
     <div className="grid grid-cols-2 gap-4 h-full">
       {/* Left: forms and controls */}
-      <div className="flex flex-col gap-4 overflow-auto">
+      <div className="flex flex-col gap-4 h-full overflow-auto">
         <div className="flex items-center gap-2">
           <Input
             placeholder="Base URL (e.g., https://petstore3.swagger.io/api/v3)"
@@ -192,7 +192,7 @@ export default function RequestBuilder() {
       </div>
 
       {/* Right: previews and response */}
-      <div className="flex flex-col gap-4 overflow-auto">
+      <div className="flex flex-col gap-4 h-full overflow-auto">
         {/* Body Preview */}
         <Panel title="Body JSON">
           <Editor

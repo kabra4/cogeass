@@ -6,8 +6,8 @@ export type DerefSpec = OpenAPIV3.Document | OpenAPIV3_1.Document;
 export async function loadSpec(input: string | File): Promise<DerefSpec> {
   const doc =
     typeof input === "string"
-      ? await SwaggerParser.bundle(input)
-      : await SwaggerParser.bundle(await fileToObjectUrl(input));
+      ? await SwaggerParser.dereference(input)
+      : await SwaggerParser.dereference(await fileToObjectUrl(input));
   return doc as unknown as DerefSpec;
 }
 

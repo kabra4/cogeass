@@ -1,12 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { withTheme } from "@rjsf/core";
 import type { RJSFSchema } from "@rjsf/utils";
 import type { JSONSchema7 } from "json-schema";
 import validator from "@rjsf/validator-ajv8";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getJsonBodySchema, buildParamsSchema } from "@/lib/schema";
 import { shadcnTheme } from "@/rjsf";
+import { Info, Filter } from "lucide-react";
 
 const ThemedForm = withTheme(shadcnTheme);
 
@@ -22,8 +25,8 @@ interface RequestFormsProps {
   bodyData: Record<string, unknown>;
   onBodyDataChange: (data: Record<string, unknown>) => void;
   onSend: () => Promise<void>;
-  op: any; // Replace with proper type if available
-  spec: any; // Replace with proper type if available
+  op: any; // Keep as-is for PoC
+  spec: any; // Keep as-is for PoC
 }
 
 export default function RequestForms({
@@ -41,7 +44,13 @@ export default function RequestForms({
   op,
   spec,
 }: RequestFormsProps) {
-  // Derive parameter schemas
+  const [active, setActive] = useState<"path" | "query" | "header" | "body">(
+    "path"
+  );
+  const [showDocs, setShowDocs] = useState(false);
+  const [showOptional, setShowOptional] = useState(false);
+  const [filterQ, setFilterQ] = useState("");
+
   const paramsSchemas = useMemo(() => {
     if (!op) return null;
     return {
@@ -51,7 +60,6 @@ export default function RequestForms({
     };
   }, [op]);
 
-  // Derive request body schema (JSON only for PoC)
   const bodySchema = useMemo(() => {
     if (!spec || !op)
       return {
@@ -62,79 +70,160 @@ export default function RequestForms({
   }, [spec, op]);
 
   if (!op) {
-    return null; // Or handle as needed; main component handles the empty state
+    return null;
   }
 
+  const formContext = {
+    showDescriptions: showDocs,
+    showOptional,
+    filterQ,
+  };
+
+  const hasPath = paramsSchemas?.path && hasProps(paramsSchemas.path);
+  const hasQuery = paramsSchemas?.query && hasProps(paramsSchemas.query);
+  const hasHeader = paramsSchemas?.header && hasProps(paramsSchemas.header);
+  const hasBody = !!bodySchema.schema;
+
+  const firstAvailable =
+    (hasPath && "path") ||
+    (hasQuery && "query") ||
+    (hasHeader && "header") ||
+    (hasBody && "body") ||
+    "path";
+
+  const value = ((): typeof active => {
+    switch (active) {
+      case "path":
+        return (hasPath ? "path" : firstAvailable) as any;
+      case "query":
+        return (hasQuery ? "query" : firstAvailable) as any;
+      case "header":
+        return (hasHeader ? "header" : firstAvailable) as any;
+      case "body":
+        return (hasBody ? "body" : firstAvailable) as any;
+      default:
+        return firstAvailable as any;
+    }
+  })();
+
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-3 h-full overflow-auto">
+      <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Base URL (e.g., https://petstore3.swagger.io/api/v3)"
           value={baseUrl}
           onChange={(e) => onBaseUrlChange(e.target.value)}
         />
         <Button onClick={onSend}>Send</Button>
+
+        <div className="ml-auto flex items-center gap-2">
+          <Input
+            placeholder="Search fields"
+            value={filterQ}
+            onChange={(e) => setFilterQ(e.target.value)}
+            className="w-[220px]"
+          />
+          <Toggle
+            pressed={showDocs}
+            onPressedChange={setShowDocs}
+            aria-label="Toggle docs"
+            title="Show descriptions"
+          >
+            <Info className="size-4" />
+            Docs
+          </Toggle>
+          <Toggle
+            pressed={showOptional}
+            onPressedChange={setShowOptional}
+            aria-label="Toggle optional fields"
+            title="Show optional fields"
+          >
+            <Filter className="size-4" />
+            Optional
+          </Toggle>
+        </div>
       </div>
 
-      {/* Path Params */}
-      {paramsSchemas?.path && hasProps(paramsSchemas.path) && (
-        <Section title="Path Params">
-          <ThemedForm
-            schema={paramsSchemas.path as RJSFSchema}
-            formData={pathData}
-            onChange={(e) => onPathDataChange(e.formData)}
-            liveValidate
-            validator={validator}
-          >
-            <div />
-          </ThemedForm>
-        </Section>
-      )}
+      <Tabs value={value} onValueChange={(v) => setActive(v as any)}>
+        <TabsList>
+          {hasPath && <TabsTrigger value="path">Path</TabsTrigger>}
+          {hasQuery && <TabsTrigger value="query">Query</TabsTrigger>}
+          {hasHeader && <TabsTrigger value="header">Header</TabsTrigger>}
+          {hasBody && <TabsTrigger value="body">Body</TabsTrigger>}
+        </TabsList>
 
-      {/* Query Params */}
-      {paramsSchemas?.query && hasProps(paramsSchemas.query) && (
-        <Section title="Query Params">
-          <ThemedForm
-            schema={paramsSchemas.query as RJSFSchema}
-            formData={queryData}
-            onChange={(e) => onQueryDataChange(e.formData)}
-            liveValidate
-            validator={validator}
-          >
-            <div />
-          </ThemedForm>
-        </Section>
-      )}
+        {hasPath && (
+          <TabsContent value="path">
+            <ThemedForm
+              schema={paramsSchemas!.path as RJSFSchema}
+              formData={pathData}
+              onChange={(e) => onPathDataChange(e.formData)}
+              validator={validator}
+              liveValidate
+              showErrorList={false}
+              formContext={formContext}
+              omitExtraData
+              liveOmit
+            >
+              <div />
+            </ThemedForm>
+          </TabsContent>
+        )}
 
-      {/* Header Params */}
-      {paramsSchemas?.header && hasProps(paramsSchemas.header) && (
-        <Section title="Header Params">
-          <ThemedForm
-            schema={paramsSchemas.header as RJSFSchema}
-            formData={headerData}
-            onChange={(e) => onHeaderDataChange(e.formData)}
-            liveValidate
-            validator={validator}
-          >
-            <div />
-          </ThemedForm>
-        </Section>
-      )}
+        {hasQuery && (
+          <TabsContent value="query">
+            <ThemedForm
+              schema={paramsSchemas!.query as RJSFSchema}
+              formData={queryData}
+              onChange={(e) => onQueryDataChange(e.formData)}
+              validator={validator}
+              liveValidate
+              showErrorList={false}
+              formContext={formContext}
+              omitExtraData
+              liveOmit
+            >
+              <div />
+            </ThemedForm>
+          </TabsContent>
+        )}
 
-      {/* Request Body */}
-      {bodySchema.schema && (
-        <Section title="Request Body">
-          <ThemedForm
-            schema={bodySchema.schema as RJSFSchema}
-            formData={bodyData}
-            onChange={(e) => onBodyDataChange(e.formData)}
-            liveValidate
-            validator={validator}
-          >
-            <div />
-          </ThemedForm>
-        </Section>
-      )}
+        {hasHeader && (
+          <TabsContent value="header">
+            <ThemedForm
+              schema={paramsSchemas!.header as RJSFSchema}
+              formData={headerData}
+              onChange={(e) => onHeaderDataChange(e.formData)}
+              validator={validator}
+              liveValidate
+              showErrorList={false}
+              formContext={formContext}
+              omitExtraData
+              liveOmit
+            >
+              <div />
+            </ThemedForm>
+          </TabsContent>
+        )}
+
+        {hasBody && (
+          <TabsContent value="body">
+            <ThemedForm
+              schema={bodySchema.schema as RJSFSchema}
+              formData={bodyData}
+              onChange={(e) => onBodyDataChange(e.formData)}
+              validator={validator}
+              liveValidate
+              showErrorList={false}
+              formContext={formContext}
+              omitExtraData
+              liveOmit
+            >
+              <div />
+            </ThemedForm>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
@@ -143,13 +232,4 @@ export default function RequestForms({
 
 function hasProps(schema: JSONSchema7) {
   return !!schema?.properties && Object.keys(schema.properties!).length > 0;
-}
-
-function Section(props: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="border rounded">
-      <div className="px-3 py-2 text-sm font-medium">{props.title}</div>
-      <div className="px-3 py-2">{props.children}</div>
-    </div>
-  );
 }

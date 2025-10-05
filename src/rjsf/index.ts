@@ -8,16 +8,19 @@ import CompactObjectFieldTemplate from "./templates/CompactObjectFieldTemplate";
 import CompactArrayFieldTemplate from "./templates/CompactArrayFieldTemplate";
 import ArrayStringWidget from "./widgets/ArrayStringWidget";
 import MultiSelectEnumWidget from "./widgets/MultiSelectEnumWidget";
+import CustomAnyOfField from "./fields/CustomAnyOfField"; // <-- IMPORT THE NEW FIELD
 
 export const shadcnTheme: Partial<ThemeProps<any>> = {
+  // Add the 'fields' property to the theme
+  fields: {
+    AnyOfField: CustomAnyOfField as any,
+    OneOfField: CustomAnyOfField as any,
+  },
   widgets: {
     TextWidget,
     SelectWidget,
     CheckboxWidget,
-    // RJSF will pick widgets by schema; we can hint with uiSchema if needed.
-    // For array of strings without enum
     ArrayStringWidget,
-    // For array of enums
     MultiSelectEnumWidget,
   },
   templates: {

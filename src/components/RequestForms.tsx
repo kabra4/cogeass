@@ -48,7 +48,7 @@ export default function RequestForms({
     "path"
   );
   const [showDocs, setShowDocs] = useState(false);
-  const [showOptional, setShowOptional] = useState(false);
+  const [showOptional, setShowOptional] = useState(true);
   const [filterQ, setFilterQ] = useState("");
 
   const paramsSchemas = useMemo(() => {

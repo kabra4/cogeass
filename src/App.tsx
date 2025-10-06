@@ -13,6 +13,11 @@ import { Button } from "@/components/ui/button";
 import { loadSpec, listOperations } from "@/lib/openapi";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 export default function App() {
   const spec = useAppStore((s) => s.spec);
@@ -34,13 +39,23 @@ export default function App() {
       {spec && (
         <div className="p-4 h-screen grid grid-rows-[auto_1fr] gap-4">
           <SpecLoader />
-          <div className="grid grid-cols-[320px_1fr] gap-4 h-full overflow-hidden">
-            <div className="border rounded p-2 overflow-auto">
-              <OperationExplorer />
-            </div>
-            <div className="border rounded p-2 overflow-auto">
-              <RequestBuilder />
-            </div>
+          <div className="h-full overflow-hidden">
+            <ResizablePanelGroup
+              direction="horizontal"
+              className="h-full gap-4"
+            >
+              <ResizablePanel defaultSize={25} minSize={20} className="h-full">
+                <div className="border rounded p-2 overflow-auto h-full">
+                  <OperationExplorer />
+                </div>
+              </ResizablePanel>
+              <ResizableHandle className="bg-border" />
+              <ResizablePanel defaultSize={75} minSize={50} className="h-full">
+                <div className="border rounded p-2 overflow-auto h-full">
+                  <RequestBuilder />
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
           </div>
         </div>
       )}

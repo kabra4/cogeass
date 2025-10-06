@@ -5,6 +5,11 @@ import { getJsonBodySchema } from "@/lib/schema";
 import { send, buildCurlFromParts } from "@/lib/request";
 import RequestForms from "./RequestForms";
 import Previews from "./Previews";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 export default function RequestBuilder() {
   const { spec, selected } = useAppStore();
@@ -99,29 +104,33 @@ export default function RequestBuilder() {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 h-full">
-      <RequestForms
-        baseUrl={baseUrl}
-        onBaseUrlChange={setBaseUrl}
-        pathData={pathData}
-        onPathDataChange={setPathData}
-        queryData={queryData}
-        onQueryDataChange={setQueryData}
-        headerData={headerData}
-        onHeaderDataChange={setHeaderData}
-        bodyData={bodyData}
-        onBodyDataChange={setBodyData}
-        onSend={handleSend}
-        op={op}
-        spec={spec}
-      />
-
-      <Previews
-        bodyData={bodyData}
-        bodySchema={bodySchema}
-        curl={curl}
-        resp={resp}
-      />
-    </div>
+    <ResizablePanelGroup direction="horizontal" className="h-full">
+      <ResizablePanel defaultSize={50} minSize={30} className="border-r">
+        <RequestForms
+          baseUrl={baseUrl}
+          onBaseUrlChange={setBaseUrl}
+          pathData={pathData}
+          onPathDataChange={setPathData}
+          queryData={queryData}
+          onQueryDataChange={setQueryData}
+          headerData={headerData}
+          onHeaderDataChange={setHeaderData}
+          bodyData={bodyData}
+          onBodyDataChange={setBodyData}
+          onSend={handleSend}
+          op={op}
+          spec={spec}
+        />
+      </ResizablePanel>
+      <ResizableHandle />
+      <ResizablePanel defaultSize={50}>
+        <Previews
+          bodyData={bodyData}
+          bodySchema={bodySchema}
+          curl={curl}
+          resp={resp}
+        />
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }

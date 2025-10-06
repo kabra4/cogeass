@@ -13,16 +13,20 @@ type State = {
   spec: DerefSpec | null;
   operations: OperationRef[];
   selected: OperationRef | null;
+  baseUrl?: string;
   setSpec: (s: DerefSpec) => void;
   setOperations: (ops: OperationRef[]) => void;
   setSelected: (op: OperationRef | null) => void;
+  setBaseUrl: (url: string) => void;
 };
 
 export const useAppStore = create<State>((set) => ({
   spec: null,
   operations: [],
   selected: null,
+  baseUrl: "",
   setSpec: (spec) => set({ spec }),
   setOperations: (operations) => set({ operations }),
   setSelected: (selected) => set({ selected }),
+  setBaseUrl: (baseUrl) => set({ baseUrl }),
 }));

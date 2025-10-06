@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/resizable";
 
 export default function RequestBuilder() {
-  const { spec, selected } = useAppStore();
-  const [baseUrl, setBaseUrl] = useState<string>("");
+  const { spec, selected, baseUrl, setBaseUrl } = useAppStore();
+
   const [pathData, setPathData] = useState<Record<string, unknown>>({});
   const [queryData, setQueryData] = useState<Record<string, unknown>>({});
   const [headerData, setHeaderData] = useState<Record<string, unknown>>({});
@@ -26,6 +26,8 @@ export default function RequestBuilder() {
     bodyText: string;
     bodyJson: any;
   } | null>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
 
   const method = (selected?.method ?? "get").toUpperCase();
   const path = selected?.path ?? "";
@@ -82,17 +84,22 @@ export default function RequestBuilder() {
 
   const handleSend = async () => {
     if (!baseUrl) return;
-    const r = await send({
-      baseUrl,
-      path,
-      method,
-      pathParams: pathData as Record<string, string | number>,
-      queryParams: queryData,
-      headers: headerData as Record<string, string>,
-      body: bodySchema.schema ? bodyData : undefined,
-      mediaType: bodySchema.mediaType ?? undefined,
-    });
-    setResp(r);
+    setIsLoading(true);
+    try {
+      const r = await send({
+        baseUrl,
+        path,
+        method,
+        pathParams: pathData as Record<string, string | number>,
+        queryParams: queryData,
+        headers: headerData as Record<string, string>,
+        body: bodySchema.schema ? bodyData : undefined,
+        mediaType: bodySchema.mediaType ?? undefined,
+      });
+      setResp(r);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!op) {
@@ -118,6 +125,7 @@ export default function RequestBuilder() {
           bodyData={bodyData}
           onBodyDataChange={setBodyData}
           onSend={handleSend}
+          isLoading={isLoading}
           op={op}
           spec={spec}
         />
@@ -129,6 +137,7 @@ export default function RequestBuilder() {
           bodySchema={bodySchema}
           curl={curl}
           resp={resp}
+          isLoading={isLoading}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

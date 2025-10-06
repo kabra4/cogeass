@@ -9,7 +9,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getJsonBodySchema, buildParamsSchema } from "@/lib/schema";
 import { shadcnTheme } from "@/rjsf";
-import { Info, Filter } from "lucide-react";
+import { Info, Filter, Loader2 } from "lucide-react";
 
 const ThemedForm = withTheme(shadcnTheme);
 
@@ -25,6 +25,7 @@ interface RequestFormsProps {
   bodyData: Record<string, unknown>;
   onBodyDataChange: (data: Record<string, unknown>) => void;
   onSend: () => Promise<void>;
+  isLoading?: boolean;
   op: any;
   spec: any;
 }
@@ -41,6 +42,7 @@ export default function RequestForms({
   bodyData,
   onBodyDataChange,
   onSend,
+  isLoading,
   op,
   spec,
 }: RequestFormsProps) {
@@ -134,7 +136,16 @@ export default function RequestForms({
           value={baseUrl}
           onChange={(e) => onBaseUrlChange(e.target.value)}
         />
-        <Button onClick={onSend}>Send</Button>
+        <Button onClick={onSend} disabled={!!isLoading}>
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Sending...
+            </>
+          ) : (
+            "Send"
+          )}
+        </Button>
 
         <div className="ml-auto flex items-center gap-2">
           <Input

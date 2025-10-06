@@ -2,6 +2,8 @@ import SpecLoader from "@/components/SpecLoader";
 import OperationExplorer from "@/components/OperationExplorer";
 import RequestBuilder from "@/components/RequestBuilder";
 import { useAppStore } from "@/store/useAppStore";
+import { ThemeProvider } from "next-themes";
+
 import {
   Dialog,
   DialogContent,
@@ -10,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { loadSpec, listOperations } from "@/lib/openapi";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -35,47 +38,60 @@ export default function App() {
     }
   };
   return (
-    <>
-      {spec && (
-        <div className="p-4 h-screen grid grid-rows-[auto_1fr] gap-4">
-          <SpecLoader />
-          <div className="h-full overflow-hidden">
-            <ResizablePanelGroup
-              direction="horizontal"
-              className="h-full gap-4"
-            >
-              <ResizablePanel defaultSize={25} minSize={20} className="h-full">
-                <div className="border rounded p-2 overflow-auto h-full">
-                  <OperationExplorer />
-                </div>
-              </ResizablePanel>
-              <ResizableHandle className="bg-border" />
-              <ResizablePanel defaultSize={75} minSize={50} className="h-full">
-                <div className="border rounded p-2 overflow-auto h-full">
-                  <RequestBuilder />
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <>
+        {spec && (
+          <div className="p-4 h-screen grid grid-rows-[auto_1fr] gap-4">
+            <div className="flex items-center gap-2">
+              <SpecLoader />
+              <ThemeToggle className="ml-auto" />
+            </div>
+            <div className="h-full overflow-hidden">
+              <ResizablePanelGroup
+                direction="horizontal"
+                className="h-full gap-4"
+              >
+                <ResizablePanel
+                  defaultSize={25}
+                  minSize={20}
+                  className="h-full"
+                >
+                  <div className="border rounded p-4 overflow-auto h-full">
+                    <OperationExplorer />
+                  </div>
+                </ResizablePanel>
+                <ResizableHandle className="bg-border" />
+                <ResizablePanel
+                  defaultSize={75}
+                  minSize={50}
+                  className="h-full"
+                >
+                  <div className="border rounded p-4 overflow-auto h-full">
+                    <RequestBuilder />
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </div>
           </div>
-        </div>
-      )}
-      <Dialog open={!spec}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Welcome to Plyt</DialogTitle>
-            <DialogDescription>
-              Load an OpenAPI specification by URL or file to get started.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-4">
-            <SpecLoader />
-            <Button variant="outline" onClick={loadPetstore}>
-              Or try the Petstore example
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Toaster />
-    </>
+        )}
+        <Dialog open={!spec}>
+          <DialogContent className="p-4">
+            <DialogHeader>
+              <DialogTitle>Welcome to Plyt</DialogTitle>
+              <DialogDescription>
+                Load an OpenAPI specification by URL or file to get started.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4">
+              <SpecLoader />
+              <Button variant="outline" onClick={loadPetstore}>
+                Or try the Petstore example
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Toaster />
+      </>
+    </ThemeProvider>
   );
 }

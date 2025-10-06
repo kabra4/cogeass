@@ -1,5 +1,6 @@
 import Editor from "@monaco-editor/react";
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import type { JSONSchema7 } from "json-schema";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Loader2 } from "lucide-react";
@@ -56,6 +57,8 @@ export default function Previews({
   const [copyBodySuccess, setCopyBodySuccess] = useState(false);
   const [copyCurlSuccess, setCopyCurlSuccess] = useState(false);
 
+  const { resolvedTheme } = useTheme();
+
   useEffect(() => {
     if (copyBodySuccess) {
       const timer = setTimeout(() => setCopyBodySuccess(false), 2000);
@@ -94,6 +97,7 @@ export default function Previews({
             defaultLanguage="json"
             value={bodyValue}
             options={{ readOnly: true, minimap: { enabled: false } }}
+            theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
           />
           <Button
             variant="ghost"
@@ -122,6 +126,7 @@ export default function Previews({
               minimap: { enabled: false },
               wordWrap: "on",
             }}
+            theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
           />
           <Button
             variant="ghost"
@@ -179,6 +184,7 @@ export default function Previews({
             minimap: { enabled: false },
             wordWrap: "on",
           }}
+          theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
         />
       </Panel>
     </div>

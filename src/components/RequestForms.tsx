@@ -20,8 +20,6 @@ const ThemedForm = withTheme(shadcnTheme);
 type ActiveTab = "path" | "query" | "header" | "customHeader" | "body";
 
 interface RequestFormsProps {
-  baseUrl: string;
-  onBaseUrlChange: (url: string) => void;
   method: string;
   path: string;
   pathData: Record<string, unknown>;
@@ -41,8 +39,6 @@ interface RequestFormsProps {
 }
 
 export default function RequestForms({
-  baseUrl,
-  onBaseUrlChange,
   method,
   path,
   pathData,
@@ -128,6 +124,23 @@ export default function RequestForms({
     setActiveTab(firstAvailable);
   }, [op, hasPath, hasQuery, hasHeader, hasBody]);
 
+  const handleClear = () => {
+    switch (activeTab) {
+      case "path":
+        onPathDataChange({});
+        break;
+      case "query":
+        onQueryDataChange({});
+        break;
+      case "header":
+        onHeaderDataChange({});
+        break;
+      case "body":
+        onBodyDataChange({});
+        break;
+    }
+  };
+
   const methodColor =
     {
       GET: "bg-green-500 text-white",
@@ -138,6 +151,8 @@ export default function RequestForms({
       HEAD: "bg-gray-500 text-white",
       OPTIONS: "bg-purple-500 text-white",
     }[method] || "bg-gray-500 text-white";
+
+  const canClear = ["path", "query", "header", "body"].includes(activeTab);
 
   return (
     <div className="flex flex-col gap-3 h-full overflow-hidden">
@@ -165,17 +180,20 @@ export default function RequestForms({
         </div>
         <div className="flex flex-wrap items-center gap-2 pb-2">
           <Input
-            placeholder="Base URL (e.g., https://petstore3.swagger.io/api/v3)"
-            value={baseUrl}
-            onChange={(e) => onBaseUrlChange(e.target.value)}
+            placeholder="Search fields"
+            value={filterQ}
+            onChange={(e) => setFilterQ(e.target.value)}
+            className="w-[220px]"
           />
           <div className="ml-auto flex items-center gap-2">
-            <Input
-              placeholder="Search fields"
-              value={filterQ}
-              onChange={(e) => setFilterQ(e.target.value)}
-              className="w-[220px]"
-            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClear}
+              disabled={!canClear}
+            >
+              Clear
+            </Button>
             <Toggle
               pressed={showDocs}
               onPressedChange={setShowDocs}
@@ -250,16 +268,7 @@ export default function RequestForms({
       {/* Content Area */}
       <div className="flex-grow overflow-auto px-2 pb-2">
         {activeTab === "path" && hasPath && (
-          <div className="space-y-4">
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onPathDataChange({})}
-              >
-                Clear Path
-              </Button>
-            </div>
+          <div className="space-y-4 pt-2">
             <ThemedForm
               schema={paramsSchemas!.path as RJSFSchema}
               uiSchema={pathUi as UiSchema}
@@ -277,16 +286,7 @@ export default function RequestForms({
           </div>
         )}
         {activeTab === "query" && hasQuery && (
-          <div className="space-y-4">
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onQueryDataChange({})}
-              >
-                Clear Query
-              </Button>
-            </div>
+          <div className="space-y-4 pt-2">
             <ThemedForm
               schema={paramsSchemas!.query as RJSFSchema}
               uiSchema={queryUi as UiSchema}
@@ -306,19 +306,10 @@ export default function RequestForms({
           </div>
         )}
         {activeTab === "header" && hasHeader && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
-                Headers defined by the specification.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onHeaderDataChange({})}
-              >
-                Clear Headers
-              </Button>
-            </div>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Headers defined by the specification.
+            </p>
             <ThemedForm
               schema={paramsSchemas!.header as RJSFSchema}
               uiSchema={headerUi as UiSchema}
@@ -338,7 +329,7 @@ export default function RequestForms({
           </div>
         )}
         {activeTab === "customHeader" && (
-          <div className="space-y-4">
+          <div className="space-y-4 pt-2">
             <p className="text-sm text-muted-foreground">
               Add custom headers to the request. These will override any
               spec-defined headers with the same key.
@@ -350,16 +341,7 @@ export default function RequestForms({
           </div>
         )}
         {activeTab === "body" && hasBody && (
-          <div className="space-y-4">
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onBodyDataChange({})}
-              >
-                Clear Body
-              </Button>
-            </div>
+          <div className="space-y-4 pt-2">
             <ThemedForm
               schema={bodySchema.schema as RJSFSchema}
               uiSchema={bodyUi as UiSchema}

@@ -59,20 +59,6 @@ export default function RequestBuilder() {
     setCurl("");
   }, [operationKey]);
 
-  // Persist base URL
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("cogeass.baseUrl");
-      if (saved) setBaseUrl(saved);
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    try {
-      if (baseUrl) localStorage.setItem("cogeass.baseUrl", baseUrl);
-    } catch {}
-  }, [baseUrl]);
-
   useEffect(() => {
     if (!path || !method || !baseUrl) {
       setCurl("");
@@ -178,8 +164,6 @@ export default function RequestBuilder() {
     <ResizablePanelGroup direction="horizontal" className="h-full">
       <ResizablePanel defaultSize={50} minSize={30} className="border-r">
         <RequestForms
-          baseUrl={baseUrl || ""}
-          onBaseUrlChange={setBaseUrl}
           method={method}
           path={path}
           pathData={pathData}

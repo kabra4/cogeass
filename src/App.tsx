@@ -22,12 +22,14 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { Loader2 } from "lucide-react";
+import { Loader2, Server } from "lucide-react";
 import { getSpecFromDB } from "@/lib/db";
+import { Input } from "@/components/ui/input";
 
 export default function App() {
   const hasHydrated = useHasHydrated();
-  const { spec, specId, setSpec, setOperations } = useAppStore((s) => s); // Corrected from setOps
+  const { spec, specId, setSpec, setOperations, baseUrl, setBaseUrl } =
+    useAppStore((s) => s);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [layout, setLayout] = useState<[number, number] | null>(null);
 
@@ -38,8 +40,8 @@ export default function App() {
         try {
           const specData = await getSpecFromDB();
           if (specData) {
-            setSpec(specData, specId);
-            setOperations(listOperations(specData)); // Corrected from setOps
+            setSpec(specData, specId!);
+            setOperations(listOperations(specData));
           } else {
             console.warn("specId found, but no matching spec in IndexedDB.");
           }
@@ -52,7 +54,20 @@ export default function App() {
       }
     };
     autoLoadPreviousSpec();
-  }, [hasHydrated, spec, specId, setSpec, setOperations]); // Corrected dependency array
+  }, [hasHydrated, spec, specId, setSpec, setOperations]);
+
+  // Persist base URL from localStorage on startup
+  useEffect(() => {
+    if (!hasHydrated) return;
+    const saved = localStorage.getItem("cogeass.baseUrl");
+    if (saved) setBaseUrl(saved);
+  }, [hasHydrated, setBaseUrl]);
+
+  // Save base URL to localStorage when it changes
+  useEffect(
+    () => localStorage.setItem("cogeass.baseUrl", baseUrl || ""),
+    [baseUrl]
+  );
 
   // Persist layout of left/right panels
   useEffect(() => {
@@ -76,7 +91,7 @@ export default function App() {
     try {
       const specData = await loadSpec(url);
       setSpec(specData, url);
-      setOperations(listOperations(specData)); // Corrected from setOps
+      setOperations(listOperations(specData));
     } catch {
       toast.error("Failed to load Petstore example");
     } finally {
@@ -105,17 +120,28 @@ export default function App() {
             {/* Sticky header */}
             <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="px-4 h-12 flex items-center gap-3">
-                <div className="text-sm font-semibold tracking-tight">CoGeass</div>
-                <div className="text-xs text-muted-foreground truncate max-w-[40%]">
+                <div className="text-sm font-semibold tracking-tight">
+                  CoGeass
+                </div>
+                <div className="text-xs text-muted-foreground truncate max-w-[250px]">
                   {(() => {
                     try {
                       // Best effort to read spec title
                       const specObj = spec as Record<string, any>;
-                      return specObj?.info?.title || "Loaded Spec";
+                      return specObj?.info?.title || "";
                     } catch {
-                      return "Loaded Spec";
+                      return "";
                     }
                   })()}
+                </div>
+                <div className="flex-1 relative">
+                  <Server className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Base URL"
+                    value={baseUrl || ""}
+                    onChange={(e) => setBaseUrl(e.target.value)}
+                    className="h-8 pl-8"
+                  />
                 </div>
                 <div className="ml-auto flex items-center gap-2">
                   <SpecLoader />
@@ -129,7 +155,10 @@ export default function App() {
                 className="h-full gap-4"
                 onLayout={(sizes) => {
                   try {
-                    localStorage.setItem("cogeass.layout", JSON.stringify(sizes));
+                    localStorage.setItem(
+                      "cogeass.layout",
+                      JSON.stringify(sizes)
+                    );
                   } catch {
                     // Ignore localStorage errors
                   }
@@ -161,7 +190,9 @@ export default function App() {
           <Dialog open={true}>
             <DialogContent className="p-4">
               <DialogHeader>
-                <DialogTitle className="text-lg">Welcome to CoGeass</DialogTitle>
+                <DialogTitle className="text-lg">
+                  Welcome to CoGeass
+                </DialogTitle>
                 <DialogDescription>
                   Load an OpenAPI specification by URL or file to get started.
                 </DialogDescription>

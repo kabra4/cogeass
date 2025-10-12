@@ -15,7 +15,7 @@ export default function CompactFieldTemplate(
     classNames,
     label,
     required,
-    description,
+
     errors,
     help,
     children,

@@ -58,7 +58,7 @@ export default function CustomAnyOfField<
     // If the new selection corresponds to an empty object (like 'open'),
     // set its value immediately to satisfy the schema.
     if (isEmptyObjectSchema) {
-      onChange({ [key]: {} });
+      onChange({ [key]: {} } as T);
     } else {
       // Otherwise, if the user is switching to a different, non-empty option,
       // clear the form data to avoid carrying over old values.
@@ -83,7 +83,7 @@ export default function CustomAnyOfField<
   const onSubChange = (newData: any) => {
     const newFormData =
       newData === undefined ? undefined : { [selectedKey]: newData };
-    onChange(newFormData);
+    onChange(newFormData as T);
   };
 
   const title = schema.title || name;
@@ -121,9 +121,9 @@ export default function CustomAnyOfField<
             idSchema={registry.schemaUtils.toIdSchema(
               selectedSchema,
               `${idSchema.$id}_${selectedKey}`,
-              registry.rootSchema,
-              formData,
-              idSchema.root
+              registry.rootSchema as any,
+              formData as any,
+              (idSchema as any).root
             )}
             formData={selectedFormData}
             onChange={onSubChange}

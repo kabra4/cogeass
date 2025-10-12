@@ -47,7 +47,24 @@ export function buildParamsSchema(
     const name = p.name;
     const schema = p.schema ?? { type: "string" as const };
     // Treat enums as selects; map examples to default
-    const s: JSONSchema7 = { ...schema };
+    const s: JSONSchema7 = { ...schema } as any;
+    // Convert OpenAPI exclusiveMaximum boolean to JSONSchema7 number format
+    if (
+      typeof s.exclusiveMaximum === "boolean" &&
+      s.exclusiveMaximum &&
+      typeof s.maximum === "number"
+    ) {
+      s.exclusiveMaximum = s.maximum;
+      delete s.maximum;
+    }
+    if (
+      typeof s.exclusiveMinimum === "boolean" &&
+      s.exclusiveMinimum &&
+      typeof s.minimum === "number"
+    ) {
+      s.exclusiveMinimum = s.minimum;
+      delete s.minimum;
+    }
     if (p.example !== undefined) s.default = p.example;
     props[name] = s;
     if (p.required) required.push(name);

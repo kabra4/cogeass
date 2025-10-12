@@ -19,7 +19,6 @@ type EnumOption = {
 };
 
 export default function MultiSelectEnumWidget({
-  id,
   value,
   disabled,
   readonly,

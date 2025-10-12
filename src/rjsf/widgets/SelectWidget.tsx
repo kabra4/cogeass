@@ -10,7 +10,7 @@ import {
 export default function SelectWidget({
   id,
   value,
-  required,
+
   disabled,
   readonly,
   options,

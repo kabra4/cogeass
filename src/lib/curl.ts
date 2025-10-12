@@ -1,4 +1,5 @@
 import { CurlGenerator } from "curl-generator";
+import type { CurlBody } from "curl-generator/dist/bodies/body";
 
 export type Method = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
@@ -31,6 +32,6 @@ export function toCurl({
     url: url,
     method: method,
     headers: allHeaders,
-    body,
+    body: body as CurlBody,
   });
 }

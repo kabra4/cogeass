@@ -6,23 +6,14 @@ import { cn } from "@/lib/utils";
 export default function CompactArrayFieldTemplate(
   props: ArrayFieldTemplateProps<any, any, any>
 ) {
-  const {
-    items,
-    canAdd,
-    onAddClick,
-    title,
-    description,
-    schema,
-    uiSchema,
-    required,
-  } = props;
+  const { items, canAdd, onAddClick, title, schema, required } = props;
 
   const headerTitle = title || schema.title || "";
 
   return (
     <div className="rounded-md border">
       {/* Header */}
-      {headerTitle || description ? (
+      {headerTitle ? (
         <div className="px-3 py-2 flex items-center gap-2 justify-between">
           <div className="min-w-0">
             <div className="text-sm font-medium truncate" title={headerTitle}>
@@ -34,11 +25,6 @@ export default function CompactArrayFieldTemplate(
                 ) : null}
               </span>
             </div>
-            {description ? (
-              <div className="text-xs text-muted-foreground line-clamp-2">
-                {typeof description === "string" ? description : null}
-              </div>
-            ) : null}
           </div>
           {canAdd ? (
             <Button

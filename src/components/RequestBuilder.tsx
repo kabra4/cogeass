@@ -168,7 +168,7 @@ export default function RequestBuilder() {
     <ResizablePanelGroup direction="horizontal" className="h-full">
       <ResizablePanel defaultSize={50} minSize={30} className="border-r">
         <RequestForms
-          baseUrl={baseUrl}
+          baseUrl={baseUrl || ""}
           onBaseUrlChange={setBaseUrl}
           method={method}
           path={path}

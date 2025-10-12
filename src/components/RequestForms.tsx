@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { withTheme } from "@rjsf/core";
 import type { RJSFSchema, UiSchema } from "@rjsf/utils";
+import type { IChangeEvent } from "@rjsf/core";
 import type { JSONSchema7 } from "json-schema";
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 import validator from "@rjsf/validator-ajv8";
@@ -234,9 +235,7 @@ export default function RequestForms({
               schema={paramsSchemas!.path as RJSFSchema}
               uiSchema={pathUi as UiSchema}
               formData={pathData}
-              onChange={(e: { formData: Record<string, unknown> }) =>
-                onPathDataChange(e.formData)
-              }
+              onChange={(e: IChangeEvent) => onPathDataChange(e.formData || {})}
               validator={validator}
               liveValidate
               showErrorList={false}
@@ -255,8 +254,8 @@ export default function RequestForms({
               schema={paramsSchemas!.query as RJSFSchema}
               uiSchema={queryUi as UiSchema}
               formData={queryData}
-              onChange={(e: { formData: Record<string, unknown> }) =>
-                onQueryDataChange(e.formData)
+              onChange={(e: IChangeEvent) =>
+                onQueryDataChange(e.formData || {})
               }
               validator={validator}
               liveValidate
@@ -276,8 +275,8 @@ export default function RequestForms({
               schema={paramsSchemas!.header as RJSFSchema}
               uiSchema={headerUi as UiSchema}
               formData={headerData}
-              onChange={(e: { formData: Record<string, unknown> }) =>
-                onHeaderDataChange(e.formData)
+              onChange={(e: IChangeEvent) =>
+                onHeaderDataChange(e.formData || {})
               }
               validator={validator}
               liveValidate
@@ -297,9 +296,7 @@ export default function RequestForms({
               schema={bodySchema.schema as RJSFSchema}
               uiSchema={bodyUi as UiSchema}
               formData={bodyData}
-              onChange={(e: { formData: Record<string, unknown> }) =>
-                onBodyDataChange(e.formData)
-              }
+              onChange={(e: IChangeEvent) => onBodyDataChange(e.formData || {})}
               validator={validator}
               liveValidate
               showErrorList={false}

@@ -4,7 +4,7 @@
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
     "devPath": "http://localhost:5173/",
-    "distDir": "../build"
+    "distDir": "../dist"
   },
   "package": {
     "productName": "cogeass",

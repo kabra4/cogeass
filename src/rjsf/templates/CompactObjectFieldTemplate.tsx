@@ -98,7 +98,7 @@ export default function CompactObjectFieldTemplate(
     const filtered = rawProps
       .filter((p) => {
         if (!filterQ) return true;
-        const propSchema = p.content.props.schema as RJSFSchema;
+        const propSchema = (p.content.props as any).schema as RJSFSchema;
         return propertyMatchesQuery(p.name, propSchema, filterQ);
       })
       .filter((p) => {

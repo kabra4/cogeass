@@ -40,10 +40,16 @@ export default function OperationExplorer() {
   // Focus search with "/" like many tools
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key === "/" &&
-        !("value" in (e.target as unknown as Record<string, unknown>))
-      ) {
+      if (e.key === "/") {
+        const t = e.target as HTMLElement | null;
+        const tag = (t?.tagName || "").toLowerCase();
+        const isEditable = t?.isContentEditable;
+        const isTypingField =
+          isEditable ||
+          tag === "input" ||
+          tag === "textarea" ||
+          tag === "select";
+        if (isTypingField) return;
         e.preventDefault();
         searchRef.current?.focus();
       }

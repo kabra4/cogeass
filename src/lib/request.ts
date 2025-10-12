@@ -1,6 +1,25 @@
 import { toCurl, type Method } from "./curl";
 import { invoke } from "@tauri-apps/api/tauri";
 
+// Fetch with timeout and abort support
+export async function fetchWithTimeout(
+  input: RequestInfo,
+  init: RequestInit & { timeoutMs?: number } = {}
+): Promise<Response> {
+  const { timeoutMs = 15000, signal } = init;
+  const ac = new AbortController();
+  const id = setTimeout(() => ac.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: signal ?? ac.signal,
+    });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 export function buildCurlFromParts(parts: {
   baseUrl: string;
   path: string;
@@ -73,10 +92,13 @@ export type SendParts = {
   headers?: Record<string, string>;
   body?: unknown;
   mediaType?: string | null;
+  timeoutMs?: number;
+  signal?: AbortSignal;
 };
 
 const isTauri = () =>
-  typeof window !== "undefined" && (window as any).__TAURI__ !== undefined;
+  typeof window !== "undefined" &&
+  (window as unknown as Record<string, unknown>).__TAURI__ !== undefined;
 
 type TauriResponse = {
   status: number;
@@ -117,10 +139,12 @@ export async function send(parts: SendParts) {
         body,
       });
 
-      let json: any = null;
+      let json: unknown = null;
       try {
         json = JSON.parse(tauriResponse.body_text);
-      } catch {}
+      } catch {
+        // Ignore JSON parsing errors
+      }
 
       return {
         status: tauriResponse.status,
@@ -143,13 +167,21 @@ export async function send(parts: SendParts) {
     }
   }
 
-  // Otherwise, fall back to the browser's fetch API
-  const res = await fetch(url, { method, headers, body });
+  // Otherwise, fall back to the browser's fetch API with timeout
+  const res = await fetchWithTimeout(url, {
+    method,
+    headers,
+    body,
+    timeoutMs: parts.timeoutMs,
+    signal: parts.signal,
+  });
   const text = await res.text();
-  let json: any = null;
+  let json: unknown = null;
   try {
     json = JSON.parse(text);
-  } catch {}
+  } catch {
+    // Ignore JSON parsing errors
+  }
   return {
     status: res.status,
     statusText: res.statusText,

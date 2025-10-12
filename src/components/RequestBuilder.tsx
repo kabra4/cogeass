@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { getJsonBodySchema } from "@/lib/schema";
 import { send, buildCurlFromParts } from "@/lib/request";
@@ -11,14 +11,8 @@ import {
 } from "@/components/ui/resizable";
 
 export default function RequestBuilder() {
-  const {
-    spec,
-    selected,
-    baseUrl,
-    setBaseUrl,
-    operationState,
-    setOperationState,
-  } = useAppStore();
+  const { spec, selected, baseUrl, operationState, setOperationState } =
+    useAppStore();
 
   const operationKey = useMemo(
     () => (selected ? `${selected.method}:${selected.path}` : ""),
@@ -43,6 +37,7 @@ export default function RequestBuilder() {
     bodyJson: unknown;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const method = (selected?.method ?? "get").toUpperCase();
   const path = selected?.path ?? "";
@@ -64,10 +59,14 @@ export default function RequestBuilder() {
       setCurl("");
       return;
     }
-    // Merge spec-defined headers with user-defined custom headers
+    // Normalize header keys to lowercase to avoid case-sensitive duplicates
+    const norm = (obj: Record<string, string>) =>
+      Object.fromEntries(
+        Object.entries(obj || {}).map(([k, v]) => [k.toLowerCase(), String(v)])
+      );
     const mergedHeaders = {
-      ...(headerData as Record<string, string>),
-      ...customHeaderData,
+      ...norm(headerData as Record<string, string>),
+      ...norm(customHeaderData),
     };
     const c = buildCurlFromParts({
       baseUrl,
@@ -94,11 +93,25 @@ export default function RequestBuilder() {
 
   const handleSend = useCallback(async () => {
     if (!baseUrl) return;
+
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setIsLoading(true);
-    // Merge headers for the request
+    // Normalize header keys to lowercase to avoid case-sensitive duplicates
+    const norm = (obj: Record<string, string>) =>
+      Object.fromEntries(
+        Object.entries(obj || {}).map(([k, v]) => [k.toLowerCase(), String(v)])
+      );
     const mergedHeaders = {
-      ...(headerData as Record<string, string>),
-      ...customHeaderData,
+      ...norm(headerData as Record<string, string>),
+      ...norm(customHeaderData),
     };
     try {
       const r = await send({
@@ -110,10 +123,37 @@ export default function RequestBuilder() {
         headers: mergedHeaders, // <-- Use merged headers
         body: bodySchema.schema ? bodyData : undefined,
         mediaType: bodySchema.mediaType ?? undefined,
+        timeoutMs: 15000,
+        signal: abortController.signal,
       });
-      setResp(r);
+
+      // Only set response if this request wasn't aborted
+      if (!abortController.signal.aborted) {
+        setResp(r);
+      }
+    } catch (error) {
+      // Only handle errors if not aborted
+      if (!abortController.signal.aborted) {
+        console.error("Request failed:", error);
+        setResp({
+          status: 500,
+          statusText: "Request Failed",
+          headers: {},
+          bodyText: error instanceof Error ? error.message : "Unknown error",
+          bodyJson: {
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+        });
+      }
     } finally {
-      setIsLoading(false);
+      // Only set loading to false if this request wasn't aborted
+      if (!abortController.signal.aborted) {
+        setIsLoading(false);
+      }
+      // Clear the ref if this was the current request
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   }, [
     baseUrl,
@@ -126,6 +166,23 @@ export default function RequestBuilder() {
     bodyData,
     bodySchema,
   ]);
+
+  const handleCancel = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Cancel request on component unmount or operation change
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [operationKey]);
 
   // Keyboard shortcut: Ctrl/Cmd + Enter
   useEffect(() => {
@@ -177,6 +234,7 @@ export default function RequestBuilder() {
           bodyData={bodyData}
           onBodyDataChange={onBodyDataChange}
           onSend={handleSend}
+          onCancel={handleCancel}
           isLoading={isLoading}
           op={op}
           spec={spec!}

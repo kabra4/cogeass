@@ -32,7 +32,10 @@ async fn make_request(
     headers: HashMap<String, String>,
     body: Option<String>,
 ) -> Result<BackendResponse, String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
     let method = method.to_uppercase();
 
     // Build the request based on the method

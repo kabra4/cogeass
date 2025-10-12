@@ -3,6 +3,24 @@ import { persist } from "zustand/middleware";
 import type { DerefSpec } from "@/lib/openapi";
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 
+// Utility to resolve server variables in a server URL
+function resolveServerVariables(
+  url: string,
+  variables?: Record<
+    string,
+    OpenAPIV3.ServerVariableObject | OpenAPIV3_1.ServerVariableObject
+  >
+): string {
+  if (!variables) return url;
+
+  let resolvedUrl = url;
+  for (const [name, variable] of Object.entries(variables)) {
+    const value = variable.default || variable.enum?.[0] || "";
+    resolvedUrl = resolvedUrl.replace(`{${name}}`, String(value));
+  }
+  return resolvedUrl;
+}
+
 type OperationRef = {
   method: string;
   path: string;
@@ -43,15 +61,32 @@ export const useAppStore = create<State>()(
       operationState: {},
 
       setSpec: (spec, id) => {
-        if (get().specId !== id) {
+        const currentState = get();
+
+        // Set default baseUrl from spec.servers if not already set
+        let newBaseUrl = currentState.baseUrl;
+        if (!newBaseUrl && spec.servers?.[0]?.url) {
+          const defaultServer = spec.servers[0];
+          newBaseUrl = resolveServerVariables(
+            defaultServer.url,
+            defaultServer.variables
+          );
+        }
+
+        if (currentState.specId !== id) {
           set({
             spec,
             specId: id,
             selected: null,
             operationState: {},
+            baseUrl: newBaseUrl,
           });
         } else {
-          set({ spec, specId: id });
+          set({
+            spec,
+            specId: id,
+            baseUrl: newBaseUrl,
+          });
         }
       },
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { withTheme } from "@rjsf/core";
 import type { RJSFSchema, UiSchema } from "@rjsf/utils";
 import type { IChangeEvent } from "@rjsf/core";
@@ -33,6 +33,7 @@ interface RequestFormsProps {
   bodyData: Record<string, unknown>;
   onBodyDataChange: (data: Record<string, unknown>) => void;
   onSend: () => Promise<void>;
+  onCancel: () => void;
   isLoading?: boolean;
   op: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject;
   spec: OpenAPIV3.Document | OpenAPIV3_1.Document;
@@ -52,6 +53,7 @@ export default function RequestForms({
   bodyData,
   onBodyDataChange,
   onSend,
+  onCancel,
   isLoading,
   op,
   spec,
@@ -113,7 +115,8 @@ export default function RequestForms({
   const hasCustomHeader = true; // Always available
 
   // Set the default active tab when the operation changes
-  useMemo(() => {
+  useEffect(() => {
+    if (!op) return;
     const firstAvailable =
       (hasPath && "path") ||
       (hasQuery && "query") ||
@@ -122,8 +125,9 @@ export default function RequestForms({
       (hasBody && "body") ||
       "path";
     setActiveTab(firstAvailable);
-  }, [op, hasPath, hasQuery, hasHeader, hasBody]);
+  }, [op, hasPath, hasQuery, hasHeader, hasBody, hasCustomHeader]);
 
+  if (!op) return null;
   const handleClear = () => {
     switch (activeTab) {
       case "path":
@@ -163,20 +167,20 @@ export default function RequestForms({
             {method}
           </Badge>
           <div className="font-mono text-sm truncate flex-1">{path}</div>
-          <Button
-            onClick={onSend}
-            disabled={!!isLoading}
-            title="Ctrl/Cmd+Enter"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Sending...
-              </>
-            ) : (
-              "Send"
-            )}
-          </Button>
+          {isLoading ? (
+            <Button variant="outline" onClick={onCancel} title="Cancel Request">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Cancel
+            </Button>
+          ) : (
+            <Button
+              onClick={onSend}
+              disabled={!!isLoading}
+              title="Ctrl/Cmd+Enter"
+            >
+              Send
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2 pb-2">
           <Input
@@ -423,7 +427,7 @@ function setUi(ui: UiSchema, dotted: string, value: Record<string, unknown>) {
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i];
     curr[s] = curr[s] || {};
-    if (i === segs.length - "1") {
+    if (i === segs.length - 1) {
       Object.assign(curr[s] as Record<string, unknown>, value);
     } else {
       curr = curr[s] as Record<string, unknown>;

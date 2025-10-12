@@ -12,7 +12,22 @@
   },
   "tauri": {
     "allowlist": {
-      "all": true
+      "all": false,
+      "window": {
+        "all": true
+      },
+      "dialog": {
+        "all": false
+      },
+      "fs": {
+        "all": false
+      },
+      "shell": {
+        "all": false
+      },
+      "http": {
+        "all": false
+      }
     },
     "bundle": {
       "active": true,
@@ -48,7 +63,7 @@
       }
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: http:;"
     },
     "updater": {
       "active": false

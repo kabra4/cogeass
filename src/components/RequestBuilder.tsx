@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import type { JSONSchema7 } from "json-schema";
 import { useAppStore } from "@/store/useAppStore";
 import { getJsonBodySchema } from "@/lib/schema";
 import { send, buildCurlFromParts } from "@/lib/request";
@@ -12,48 +11,47 @@ import {
 } from "@/components/ui/resizable";
 
 export default function RequestBuilder() {
-  const { spec, selected, baseUrl, setBaseUrl } = useAppStore();
+  const {
+    spec,
+    selected,
+    baseUrl,
+    setBaseUrl,
+    operationState,
+    setOperationState,
+  } = useAppStore();
 
-  const [pathData, setPathData] = useState<Record<string, unknown>>({});
-  const [queryData, setQueryData] = useState<Record<string, unknown>>({});
-  const [headerData, setHeaderData] = useState<Record<string, unknown>>({});
-  const [bodyData, setBodyData] = useState<Record<string, unknown>>({});
+  const operationKey = useMemo(
+    () => (selected ? `${selected.method}:${selected.path}` : ""),
+    [selected]
+  );
+
+  // Data is now derived from the global store based on the selected operation
+  const {
+    pathData = {},
+    queryData = {},
+    headerData = {},
+    bodyData = {},
+  } = operationState[operationKey] || {};
+
   const [curl, setCurl] = useState<string>("");
-  const [resp, setResp] = useState<{
-    status: number;
-    statusText: string;
-    headers: Record<string, string>;
-    bodyText: string;
-    bodyJson: any;
-  } | null>(null);
-
+  const [resp, setResp] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const method = (selected?.method ?? "get").toUpperCase();
   const path = selected?.path ?? "";
   const op = selected?.op;
 
-  // Derive request body schema (JSON only for PoC)
   const bodySchema = useMemo(() => {
-    if (!spec || !op)
-      return {
-        schema: null as JSONSchema7 | null,
-        mediaType: null as string | null,
-      };
+    if (!spec || !op) return { schema: null, mediaType: null };
     return getJsonBodySchema(spec, op);
   }, [spec, op]);
 
-  // Reset form state when operation changes
+  // Reset response and curl when operation changes, but form data is now preserved
   useEffect(() => {
-    setPathData({});
-    setQueryData({});
-    setHeaderData({});
-    setBodyData({});
     setResp(null);
     setCurl("");
-  }, [selected?.method, selected?.path]);
+  }, [operationKey]);
 
-  // Update cURL on any relevant change
   useEffect(() => {
     if (!path || !method || !baseUrl) {
       setCurl("");
@@ -78,8 +76,7 @@ export default function RequestBuilder() {
     queryData,
     headerData,
     bodyData,
-    bodySchema.mediaType,
-    bodySchema.schema,
+    bodySchema,
   ]);
 
   const handleSend = async () => {
@@ -102,6 +99,16 @@ export default function RequestBuilder() {
     }
   };
 
+  // Handlers now update the global store
+  const onPathDataChange = (data: any) =>
+    setOperationState(operationKey, { pathData: data });
+  const onQueryDataChange = (data: any) =>
+    setOperationState(operationKey, { queryData: data });
+  const onHeaderDataChange = (data: any) =>
+    setOperationState(operationKey, { headerData: data });
+  const onBodyDataChange = (data: any) =>
+    setOperationState(operationKey, { bodyData: data });
+
   if (!op) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
@@ -117,13 +124,13 @@ export default function RequestBuilder() {
           baseUrl={baseUrl}
           onBaseUrlChange={setBaseUrl}
           pathData={pathData}
-          onPathDataChange={setPathData}
+          onPathDataChange={onPathDataChange}
           queryData={queryData}
-          onQueryDataChange={setQueryData}
+          onQueryDataChange={onQueryDataChange}
           headerData={headerData}
-          onHeaderDataChange={setHeaderData}
+          onHeaderDataChange={onHeaderDataChange}
           bodyData={bodyData}
-          onBodyDataChange={setBodyData}
+          onBodyDataChange={onBodyDataChange}
           onSend={handleSend}
           isLoading={isLoading}
           op={op}

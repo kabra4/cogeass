@@ -32,6 +32,15 @@ export default function SpecLoader() {
     }
   }
 
+  async function handlePasteUrl() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) setUrl(text);
+    } catch {
+      toast.error("Failed to read clipboard");
+    }
+  }
+
   return (
     <div className="flex gap-2">
       <Input
@@ -41,6 +50,14 @@ export default function SpecLoader() {
       />
       <Button disabled={isLoading || !url} onClick={() => doLoad(url)}>
         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load"}
+      </Button>
+      <Button
+        variant="secondary"
+        disabled={isLoading}
+        onClick={handlePasteUrl}
+        title="Paste URL from clipboard"
+      >
+        Paste
       </Button>
       <input
         ref={fileRef}

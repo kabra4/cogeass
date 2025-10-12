@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { getJsonBodySchema } from "@/lib/schema";
 import { send, buildCurlFromParts } from "@/lib/request";
@@ -34,7 +34,13 @@ export default function RequestBuilder() {
   } = operationState[operationKey] || {};
 
   const [curl, setCurl] = useState<string>("");
-  const [resp, setResp] = useState<any>(null);
+  const [resp, setResp] = useState<{
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    bodyText: string;
+    bodyJson: unknown;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const method = (selected?.method ?? "get").toUpperCase();
@@ -52,6 +58,24 @@ export default function RequestBuilder() {
     setCurl("");
   }, [operationKey]);
 
+  // Persist base URL across sessions
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("plyt.baseUrl");
+      if (saved) setBaseUrl(saved);
+    } catch {
+      // Ignore localStorage errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    try {
+      if (baseUrl) localStorage.setItem("plyt.baseUrl", baseUrl);
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [baseUrl]);
+
   useEffect(() => {
     if (!path || !method || !baseUrl) {
       setCurl("");
@@ -60,7 +84,7 @@ export default function RequestBuilder() {
     const c = buildCurlFromParts({
       baseUrl,
       path,
-      method,
+      method: method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
       pathParams: pathData as Record<string, string | number>,
       queryParams: queryData,
       headerParams: headerData as Record<string, string>,
@@ -79,7 +103,7 @@ export default function RequestBuilder() {
     bodySchema,
   ]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!baseUrl) return;
     setIsLoading(true);
     try {
@@ -97,16 +121,39 @@ export default function RequestBuilder() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    baseUrl,
+    path,
+    method,
+    pathData,
+    queryData,
+    headerData,
+    bodyData,
+    bodySchema,
+  ]);
+
+  // Keyboard shortcut: Ctrl/Cmd + Enter to send
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isSend =
+        e.key === "Enter" && (e.metaKey || e.ctrlKey) && !isLoading;
+      if (isSend) {
+        e.preventDefault();
+        handleSend();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleSend, isLoading]);
 
   // Handlers now update the global store
-  const onPathDataChange = (data: any) =>
+  const onPathDataChange = (data: Record<string, unknown>) =>
     setOperationState(operationKey, { pathData: data });
-  const onQueryDataChange = (data: any) =>
+  const onQueryDataChange = (data: Record<string, unknown>) =>
     setOperationState(operationKey, { queryData: data });
-  const onHeaderDataChange = (data: any) =>
+  const onHeaderDataChange = (data: Record<string, unknown>) =>
     setOperationState(operationKey, { headerData: data });
-  const onBodyDataChange = (data: any) =>
+  const onBodyDataChange = (data: Record<string, unknown>) =>
     setOperationState(operationKey, { bodyData: data });
 
   if (!op) {
@@ -123,6 +170,8 @@ export default function RequestBuilder() {
         <RequestForms
           baseUrl={baseUrl}
           onBaseUrlChange={setBaseUrl}
+          method={method}
+          path={path}
           pathData={pathData}
           onPathDataChange={onPathDataChange}
           queryData={queryData}
@@ -134,7 +183,7 @@ export default function RequestBuilder() {
           onSend={handleSend}
           isLoading={isLoading}
           op={op}
-          spec={spec}
+          spec={spec!}
         />
       </ResizablePanel>
       <ResizableHandle />

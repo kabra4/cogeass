@@ -29,6 +29,7 @@ export default function App() {
   const hasHydrated = useHasHydrated();
   const { spec, specId, setSpec, setOperations } = useAppStore((s) => s); // Corrected from setOps
   const [isAutoLoading, setIsAutoLoading] = useState(false);
+  const [layout, setLayout] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     const autoLoadPreviousSpec = async () => {
@@ -53,6 +54,22 @@ export default function App() {
     autoLoadPreviousSpec();
   }, [hasHydrated, spec, specId, setSpec, setOperations]); // Corrected dependency array
 
+  // Persist layout of left/right panels
+  useEffect(() => {
+    if (!hasHydrated) return;
+    try {
+      const raw = localStorage.getItem("plyt.layout");
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length === 2) {
+          setLayout([arr[0], arr[1]]);
+        }
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [hasHydrated]);
+
   const loadPetstore = async () => {
     const url = "https://petstore3.swagger.io/api/v3/openapi.json";
     setIsAutoLoading(true);
@@ -60,7 +77,7 @@ export default function App() {
       const specData = await loadSpec(url);
       setSpec(specData, url);
       setOperations(listOperations(specData)); // Corrected from setOps
-    } catch (error) {
+    } catch {
       toast.error("Failed to load Petstore example");
     } finally {
       setIsAutoLoading(false);
@@ -84,32 +101,56 @@ export default function App() {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <>
         {spec ? (
-          <div className="p-4 h-screen grid grid-rows-[auto_1fr] gap-4">
-            <div className="flex items-center gap-2">
-              <SpecLoader />
-              <ThemeToggle className="ml-auto" />
+          <div className="h-screen grid grid-rows-[auto_1fr]">
+            {/* Sticky header */}
+            <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="px-4 h-12 flex items-center gap-3">
+                <div className="text-sm font-semibold tracking-tight">Plyt</div>
+                <div className="text-xs text-muted-foreground truncate max-w-[40%]">
+                  {(() => {
+                    try {
+                      // Best effort to read spec title
+                      const specObj = spec as Record<string, any>;
+                      return specObj?.info?.title || "Loaded Spec";
+                    } catch {
+                      return "Loaded Spec";
+                    }
+                  })()}
+                </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <SpecLoader />
+                  <ThemeToggle />
+                </div>
+              </div>
             </div>
-            <div className="h-full overflow-hidden">
+            <div className="h-full overflow-hidden p-4">
               <ResizablePanelGroup
                 direction="horizontal"
                 className="h-full gap-4"
+                onLayout={(sizes) => {
+                  try {
+                    localStorage.setItem("plyt.layout", JSON.stringify(sizes));
+                  } catch {
+                    // Ignore localStorage errors
+                  }
+                }}
               >
                 <ResizablePanel
-                  defaultSize={25}
+                  defaultSize={layout?.[0] ?? 25}
                   minSize={20}
                   className="h-full"
                 >
-                  <div className="border rounded p-4 overflow-auto h-full">
+                  <div className="border rounded-lg p-3 overflow-auto h-full">
                     <OperationExplorer />
                   </div>
                 </ResizablePanel>
                 <ResizableHandle className="bg-border" />
                 <ResizablePanel
-                  defaultSize={75}
+                  defaultSize={layout?.[1] ?? 75}
                   minSize={50}
                   className="h-full"
                 >
-                  <div className="border rounded p-4 overflow-auto h-full">
+                  <div className="border rounded-lg p-3 overflow-auto h-full">
                     <RequestBuilder />
                   </div>
                 </ResizablePanel>
@@ -120,7 +161,7 @@ export default function App() {
           <Dialog open={true}>
             <DialogContent className="p-4">
               <DialogHeader>
-                <DialogTitle>Welcome to Plyt</DialogTitle>
+                <DialogTitle className="text-lg">Welcome to Plyt</DialogTitle>
                 <DialogDescription>
                   Load an OpenAPI specification by URL or file to get started.
                 </DialogDescription>

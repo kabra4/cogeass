@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { withTheme } from "@rjsf/core";
 import type { RJSFSchema, UiSchema } from "@rjsf/utils";
 import type { JSONSchema7 } from "json-schema";
+import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 import validator from "@rjsf/validator-ajv8";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getJsonBodySchema, buildParamsSchema } from "@/lib/schema";
 import { shadcnTheme } from "@/rjsf";
 import { Info, Filter, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { clsx } from "clsx";
 
 const ThemedForm = withTheme(shadcnTheme);
 
 interface RequestFormsProps {
   baseUrl: string;
   onBaseUrlChange: (url: string) => void;
+  method: string;
+  path: string;
   pathData: Record<string, unknown>;
   onPathDataChange: (data: Record<string, unknown>) => void;
   queryData: Record<string, unknown>;
@@ -26,13 +31,15 @@ interface RequestFormsProps {
   onBodyDataChange: (data: Record<string, unknown>) => void;
   onSend: () => Promise<void>;
   isLoading?: boolean;
-  op: any;
-  spec: any;
+  op: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject;
+  spec: OpenAPIV3.Document | OpenAPIV3_1.Document;
 }
 
 export default function RequestForms({
   baseUrl,
   onBaseUrlChange,
+  method,
+  path,
   pathData,
   onPathDataChange,
   queryData,
@@ -71,6 +78,25 @@ export default function RequestForms({
     return getJsonBodySchema(spec, op);
   }, [spec, op]);
 
+  const pathUi = useMemo(
+    () => (paramsSchemas?.path ? buildUiSchema(paramsSchemas.path) : undefined),
+    [paramsSchemas?.path]
+  );
+  const queryUi = useMemo(
+    () =>
+      paramsSchemas?.query ? buildUiSchema(paramsSchemas.query) : undefined,
+    [paramsSchemas?.query]
+  );
+  const headerUi = useMemo(
+    () =>
+      paramsSchemas?.header ? buildUiSchema(paramsSchemas.header) : undefined,
+    [paramsSchemas?.header]
+  );
+  const bodyUi = useMemo(
+    () => (bodySchema.schema ? buildUiSchema(bodySchema.schema) : undefined),
+    [bodySchema.schema]
+  );
+
   if (!op) return null;
 
   const formContext = {
@@ -96,72 +122,101 @@ export default function RequestForms({
     hasQuery: !!hasQuery,
     hasHeader: !!hasHeader,
     hasBody: !!hasBody,
-    firstAvailable: firstAvailable as any,
+    firstAvailable: firstAvailable as "path" | "query" | "header" | "body",
   });
 
-  const pathUi = useMemo(
-    () => (paramsSchemas?.path ? buildUiSchema(paramsSchemas.path) : undefined),
-    [paramsSchemas?.path]
-  );
-  const queryUi = useMemo(
-    () =>
-      paramsSchemas?.query ? buildUiSchema(paramsSchemas.query) : undefined,
-    [paramsSchemas?.query]
-  );
-  const headerUi = useMemo(
-    () =>
-      paramsSchemas?.header ? buildUiSchema(paramsSchemas.header) : undefined,
-    [paramsSchemas?.header]
-  );
-  const bodyUi = useMemo(
-    () => (bodySchema.schema ? buildUiSchema(bodySchema.schema) : undefined),
-    [bodySchema.schema]
-  );
+  const methodColor =
+    {
+      GET: "bg-green-500 text-white",
+      POST: "bg-blue-500 text-white",
+      PUT: "bg-orange-500 text-white",
+      PATCH: "bg-yellow-500 text-white",
+      DELETE: "bg-red-500 text-white",
+      HEAD: "bg-gray-500 text-white",
+      OPTIONS: "bg-purple-500 text-white",
+    }[method] || "bg-gray-500 text-white";
+
+  function clearActiveTab() {
+    switch (value) {
+      case "path":
+        onPathDataChange({});
+        break;
+      case "query":
+        onQueryDataChange({});
+        break;
+      case "header":
+        onHeaderDataChange({});
+        break;
+      case "body":
+        onBodyDataChange({});
+        break;
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3 h-full overflow-auto">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder="Base URL (e.g., https://petstore3.swagger.io/api/v3)"
-          value={baseUrl}
-          onChange={(e) => onBaseUrlChange(e.target.value)}
-        />
-        <Button onClick={onSend} disabled={!!isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Sending...
-            </>
-          ) : (
-            "Send"
-          )}
-        </Button>
-
-        <div className="ml-auto flex items-center gap-2">
+      {/* Sticky sub-header for operation + controls */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="flex flex-wrap items-center gap-2 p-2">
+          <Badge className={clsx("w-14 justify-center", methodColor)}>
+            {method}
+          </Badge>
+          <div className="font-mono text-sm truncate flex-1">{path}</div>
+          <Button
+            onClick={onSend}
+            disabled={!!isLoading}
+            title="Ctrl/Cmd+Enter"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Sending...
+              </>
+            ) : (
+              "Send"
+            )}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={clearActiveTab}
+            disabled={!!isLoading}
+            title="Clear current tab"
+          >
+            Clear
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 p-2 pt-0">
           <Input
-            placeholder="Search fields"
-            value={filterQ}
-            onChange={(e) => setFilterQ(e.target.value)}
-            className="w-[220px]"
+            placeholder="Base URL (e.g., https://petstore3.swagger.io/api/v3)"
+            value={baseUrl}
+            onChange={(e) => onBaseUrlChange(e.target.value)}
           />
-          <Toggle
-            pressed={showDocs}
-            onPressedChange={setShowDocs}
-            aria-label="Toggle docs"
-            title="Show descriptions"
-          >
-            <Info className="size-4" />
-            Docs
-          </Toggle>
-          <Toggle
-            pressed={showOptional}
-            onPressedChange={setShowOptional}
-            aria-label="Toggle optional fields"
-            title="Show optional fields"
-          >
-            <Filter className="size-4" />
-            Optional
-          </Toggle>
+          <div className="ml-auto flex items-center gap-2">
+            <Input
+              placeholder="Search fields"
+              value={filterQ}
+              onChange={(e) => setFilterQ(e.target.value)}
+              className="w-[220px]"
+            />
+            <Toggle
+              pressed={showDocs}
+              onPressedChange={setShowDocs}
+              aria-label="Toggle docs"
+              title="Show descriptions"
+            >
+              <Info className="size-4" />
+              Docs
+            </Toggle>
+            <Toggle
+              pressed={showOptional}
+              onPressedChange={setShowOptional}
+              aria-label="Toggle optional fields"
+              title="Show optional fields"
+            >
+              <Filter className="size-4" />
+              Optional
+            </Toggle>
+          </div>
         </div>
       </div>
 
@@ -179,7 +234,9 @@ export default function RequestForms({
               schema={paramsSchemas!.path as RJSFSchema}
               uiSchema={pathUi as UiSchema}
               formData={pathData}
-              onChange={(e) => onPathDataChange(e.formData)}
+              onChange={(e: { formData: Record<string, unknown> }) =>
+                onPathDataChange(e.formData)
+              }
               validator={validator}
               liveValidate
               showErrorList={false}
@@ -198,7 +255,9 @@ export default function RequestForms({
               schema={paramsSchemas!.query as RJSFSchema}
               uiSchema={queryUi as UiSchema}
               formData={queryData}
-              onChange={(e) => onQueryDataChange(e.formData)}
+              onChange={(e: { formData: Record<string, unknown> }) =>
+                onQueryDataChange(e.formData)
+              }
               validator={validator}
               liveValidate
               showErrorList={false}
@@ -217,7 +276,9 @@ export default function RequestForms({
               schema={paramsSchemas!.header as RJSFSchema}
               uiSchema={headerUi as UiSchema}
               formData={headerData}
-              onChange={(e) => onHeaderDataChange(e.formData)}
+              onChange={(e: { formData: Record<string, unknown> }) =>
+                onHeaderDataChange(e.formData)
+              }
               validator={validator}
               liveValidate
               showErrorList={false}
@@ -236,7 +297,9 @@ export default function RequestForms({
               schema={bodySchema.schema as RJSFSchema}
               uiSchema={bodyUi as UiSchema}
               formData={bodyData}
-              onChange={(e) => onBodyDataChange(e.formData)}
+              onChange={(e: { formData: Record<string, unknown> }) =>
+                onBodyDataChange(e.formData)
+              }
               validator={validator}
               liveValidate
               showErrorList={false}
@@ -295,6 +358,9 @@ function buildUiSchema(schema: JSONSchema7): UiSchema {
     if (nodeType.includes("number") || nodeType.includes("integer")) {
       setUi(ui, key, { "ui:widget": "NumberWidget" });
     }
+    if (nodeType.includes("boolean")) {
+      setUi(ui, key, { "ui:widget": "CheckboxWidget" });
+    }
 
     if (nodeType.includes("array") && node.items) {
       const items = node.items as JSONSchema7;
@@ -329,20 +395,20 @@ function toUiPath(parts: string[]): string {
   return parts.join(".");
 }
 
-function setUi(ui: UiSchema, dotted: string, value: Record<string, any>) {
+function setUi(ui: UiSchema, dotted: string, value: Record<string, unknown>) {
   if (!dotted) {
     Object.assign(ui, value);
     return;
   }
   const segs = dotted.split(".");
-  let curr: any = ui;
+  let curr: Record<string, unknown> = ui;
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i];
     curr[s] = curr[s] || {};
     if (i === segs.length - 1) {
-      Object.assign(curr[s], value);
+      Object.assign(curr[s] as Record<string, unknown>, value);
     } else {
-      curr = curr[s];
+      curr = curr[s] as Record<string, unknown>;
     }
   }
 }

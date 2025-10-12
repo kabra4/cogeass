@@ -1,8 +1,8 @@
 # CoGeass
 
-A web-based proof of concept that turns OpenAPI 3.0/3.1 schemas into interactive forms to build JSON payloads without hand-editing. It renders nested objects, arrays, enums as selects, validates inputs, generates a cURL command, and can send the request to a target URL.
+A web-based desktop application that turns OpenAPI 3.0/3.1 schemas into interactive forms to build JSON payloads without hand-editing. It renders nested objects, arrays, enums as selects, validates inputs, generates a cURL command, and can send the request to a target URL.
 
-Built with Bun, Vite, React, shadcn/ui, and RJSF. Designed to be portable into a desktop shell (e.g., Tauri) later.
+Built with Bun, Vite, React, shadcn/ui, RJSF and Tauri.
 
 ## Features
 
@@ -59,18 +59,3 @@ bun run preview
 ## License
 
 MIT
-
-## Credits
-
-- Based on the OpenAPI Specification and JSON Schema ecosystem
-- UI powered by shadcn/ui and Radix primitives
-- Form rendering by RJSF and validation by AJV
-
-## Next Steps
-
-- Implement parameter style/explode support
-- Add auth (API key/Bearer/Basic) and environments
-- Add multipart/form-data support
-- Package as a desktop app via Tauri reusing this UI
-
-If you want, I can include a sample Petstore spec in the repo and a guided walkthrough with screenshots.

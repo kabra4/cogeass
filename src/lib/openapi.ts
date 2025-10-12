@@ -2,27 +2,50 @@ import SwaggerParser from "@apidevtools/swagger-parser";
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 import converter from "swagger2openapi";
 import { saveSpecToDB } from "./db";
+import { invoke } from "@tauri-apps/api/tauri";
+import yaml from "js-yaml";
+
+export type DerefSpec = OpenAPIV3.Document | OpenAPIV3_1.Document;
+
+const isTauri = () =>
+  typeof window !== "undefined" && (window as any).__TAURI__ !== undefined;
 
 /**
  * Loads and processes an OpenAPI specification from a URL or File object.
  * This function automatically detects if the spec is Swagger 2.0 and, if so,
- * converts it to OpenAPI 3.0 before dereferencing.
+ * converts it to OpenAPI 3.0 before dereferencing. When running in a Tauri
+ * environment, it uses the Rust backend to fetch URLs.
  *
  * @param input - A URL string or a File object.
  * @returns A fully dereferenced OpenAPI 3.0+ specification.
  */
 export async function loadSpec(input: string | File): Promise<DerefSpec> {
   try {
-    const specUrlOrObject =
-      typeof input === "string" ? input : await fileToObjectUrl(input);
+    let specObject: any;
 
-    const parsedSpec: any = await SwaggerParser.parse(specUrlOrObject);
+    if (typeof input === "string" && isTauri()) {
+      console.log("Tauri environment detected, fetching spec via backend...");
+      // Using invoke to call the Rust command, as recommended.
+      const specContent = await invoke<string>("load_spec_from_url", {
+        url: input,
+      });
+      try {
+        specObject = JSON.parse(specContent);
+      } catch (e) {
+        // Fallback to YAML parsing if JSON fails
+        specObject = yaml.load(specContent);
+      }
+    } else {
+      const specUrlOrObject =
+        typeof input === "string" ? input : await fileToObjectUrl(input);
+      specObject = await SwaggerParser.parse(specUrlOrObject);
+    }
 
-    let specToProcess = parsedSpec;
+    let specToProcess = specObject;
 
-    if (parsedSpec.swagger === "2.0") {
+    if (specToProcess.swagger === "2.0") {
       console.log("Detected Swagger 2.0 spec, attempting conversion...");
-      const { openapi } = await converter.convertObj(parsedSpec, {});
+      const { openapi } = await converter.convertObj(specToProcess, {});
       specToProcess = openapi;
       console.log("Conversion to OpenAPI 3.0 successful.");
     }
@@ -41,7 +64,6 @@ export async function loadSpec(input: string | File): Promise<DerefSpec> {
     );
   }
 }
-export type DerefSpec = OpenAPIV3.Document | OpenAPIV3_1.Document;
 
 async function fileToObjectUrl(file: File): Promise<string> {
   return URL.createObjectURL(file);

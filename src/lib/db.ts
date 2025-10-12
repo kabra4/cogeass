@@ -1,12 +1,12 @@
 import { openDB, type DBSchema } from "idb";
 import type { DerefSpec } from "./openapi";
 
-const DB_NAME = "plyt-db";
+const DB_NAME = "cogeass-db";
 const DB_VERSION = 1;
 const SPEC_STORE_NAME = "specs";
 const SPEC_KEY = "current-spec";
 
-interface PlytDB extends DBSchema {
+interface CoGeassDB extends DBSchema {
   [SPEC_STORE_NAME]: {
     key: string;
     value: DerefSpec;
@@ -14,7 +14,7 @@ interface PlytDB extends DBSchema {
 }
 
 // Open the database
-const dbPromise = openDB<PlytDB>(DB_NAME, DB_VERSION, {
+const dbPromise = openDB<CoGeassDB>(DB_NAME, DB_VERSION, {
   upgrade(db) {
     db.createObjectStore(SPEC_STORE_NAME);
   },

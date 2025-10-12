@@ -1,4 +1,4 @@
-# Plyt
+# CoGeass
 
 A web-based proof of concept that turns OpenAPI 3.0/3.1 schemas into interactive forms to build JSON payloads without hand-editing. It renders nested objects, arrays, enums as selects, validates inputs, generates a cURL command, and can send the request to a target URL.
 

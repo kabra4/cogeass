@@ -69,7 +69,7 @@ export const useAppStore = create<State>()(
       },
     }),
     {
-      name: "plyt-storage",
+      name: "cogeass-storage",
       partialize: (state) => ({
         specId: state.specId,
         selected: state.selected,

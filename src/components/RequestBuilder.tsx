@@ -61,7 +61,7 @@ export default function RequestBuilder() {
   // Persist base URL across sessions
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("plyt.baseUrl");
+      const saved = localStorage.getItem("cogeass.baseUrl");
       if (saved) setBaseUrl(saved);
     } catch {
       // Ignore localStorage errors
@@ -70,7 +70,7 @@ export default function RequestBuilder() {
   }, []);
   useEffect(() => {
     try {
-      if (baseUrl) localStorage.setItem("plyt.baseUrl", baseUrl);
+      if (baseUrl) localStorage.setItem("cogeass.baseUrl", baseUrl);
     } catch {
       // Ignore localStorage errors
     }

@@ -58,7 +58,7 @@ export default function App() {
   useEffect(() => {
     if (!hasHydrated) return;
     try {
-      const raw = localStorage.getItem("plyt.layout");
+      const raw = localStorage.getItem("cogeass.layout");
       if (raw) {
         const arr = JSON.parse(raw);
         if (Array.isArray(arr) && arr.length === 2) {
@@ -105,7 +105,7 @@ export default function App() {
             {/* Sticky header */}
             <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="px-4 h-12 flex items-center gap-3">
-                <div className="text-sm font-semibold tracking-tight">Plyt</div>
+                <div className="text-sm font-semibold tracking-tight">CoGeass</div>
                 <div className="text-xs text-muted-foreground truncate max-w-[40%]">
                   {(() => {
                     try {
@@ -129,7 +129,7 @@ export default function App() {
                 className="h-full gap-4"
                 onLayout={(sizes) => {
                   try {
-                    localStorage.setItem("plyt.layout", JSON.stringify(sizes));
+                    localStorage.setItem("cogeass.layout", JSON.stringify(sizes));
                   } catch {
                     // Ignore localStorage errors
                   }
@@ -161,7 +161,7 @@ export default function App() {
           <Dialog open={true}>
             <DialogContent className="p-4">
               <DialogHeader>
-                <DialogTitle className="text-lg">Welcome to Plyt</DialogTitle>
+                <DialogTitle className="text-lg">Welcome to CoGeass</DialogTitle>
                 <DialogDescription>
                   Load an OpenAPI specification by URL or file to get started.
                 </DialogDescription>

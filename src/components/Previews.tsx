@@ -1,11 +1,10 @@
 import Editor from "@monaco-editor/react";
-import { useState, useEffect } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTheme } from "next-themes";
 import type { JSONSchema7 } from "json-schema";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Loader2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface PreviewsProps {
   bodyData: Record<string, unknown>;
@@ -19,7 +18,7 @@ interface PreviewsProps {
     statusText: string;
     headers: Record<string, string>;
     bodyText: string;
-    bodyJson: unknown;
+    bodyJson: any;
   } | null;
   isLoading?: boolean;
 }
@@ -32,17 +31,41 @@ function safeStringify(v: unknown, spaces = 2): string {
   }
 }
 
-function Panel({
-  title,
-  children,
-}: {
+function Panel(props: {
   title: string;
   children: React.ReactNode;
+  defaultOpen?: boolean;
 }) {
+  const { title, children, defaultOpen = true } = props;
+  const [open, setOpen] = useState<boolean>(defaultOpen);
+  const panelId = useId();
+  const rootBase = "border rounded-lg overflow-hidden flex flex-col";
+  const sizeClass = open ? "flex-1 min-h-0" : "flex-none";
   return (
-    <div className="border rounded">
-      <div className="px-3 py-2 text-sm font-medium">{title}</div>
-      <div>{children}</div>
+    <div className={`${rootBase} ${sizeClass}`}>
+      <div className="px-3 py-2 text-sm font-medium bg-muted/30 border-b">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between gap-2 hover:opacity-90 transition"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={panelId}
+        >
+          <div className="flex items-center gap-2">
+            {open ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+            <span className="text-left">{title}</span>
+          </div>
+        </button>
+      </div>
+      {open && (
+        <div id={panelId} className="flex-1 min-h-0">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -57,8 +80,6 @@ export default function Previews({
   const bodyValue = bodySchema.schema ? safeStringify(bodyData ?? {}, 2) : "";
   const [copyBodySuccess, setCopyBodySuccess] = useState(false);
   const [copyCurlSuccess, setCopyCurlSuccess] = useState(false);
-  const [copyRespSuccess, setCopyRespSuccess] = useState(false);
-  const [copyHeadersSuccess, setCopyHeadersSuccess] = useState(false);
 
   const { resolvedTheme } = useTheme();
 
@@ -76,20 +97,6 @@ export default function Previews({
     }
   }, [copyCurlSuccess]);
 
-  useEffect(() => {
-    if (copyRespSuccess) {
-      const timer = setTimeout(() => setCopyRespSuccess(false), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [copyRespSuccess]);
-
-  useEffect(() => {
-    if (copyHeadersSuccess) {
-      const timer = setTimeout(() => setCopyHeadersSuccess(false), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [copyHeadersSuccess]);
-
   const copyToClipboard = async (text: string, type: "body" | "curl") => {
     try {
       await navigator.clipboard.writeText(text);
@@ -99,48 +106,18 @@ export default function Previews({
       } else {
         setCopyCurlSuccess(true);
       }
-    } catch {
+    } catch (err) {
       toast.error("Failed to copy to clipboard");
     }
   };
 
-  const copyResponseBody = async () => {
-    try {
-      const text = resp
-        ? resp.bodyJson
-          ? safeStringify(resp.bodyJson, 2)
-          : resp.bodyText
-        : "";
-      await navigator.clipboard.writeText(text || "");
-      setCopyRespSuccess(true);
-      toast.success("Response body copied to clipboard");
-    } catch {
-      toast.error("Failed to copy response body");
-    }
-  };
-
-  const copyHeaders = async () => {
-    try {
-      const text = resp?.headers
-        ? Object.entries(resp.headers)
-            .map(([k, v]) => `${k}: ${v}`)
-            .join("\n")
-        : "";
-      await navigator.clipboard.writeText(text);
-      setCopyHeadersSuccess(true);
-      toast.success("Response headers copied to clipboard");
-    } catch {
-      toast.error("Failed to copy headers");
-    }
-  };
-
   return (
-    <div className="flex flex-col gap-4 h-full overflow-auto">
+    <div className="flex h-full min-h-0 flex-col gap-3 border-l pl-3 overflow-hidden">
       {/* Body Preview */}
       <Panel title="Body JSON">
-        <div className="relative">
+        <div className="relative h-full min-h-[160px]">
           <Editor
-            height="200px"
+            height="100%"
             defaultLanguage="json"
             value={bodyValue}
             options={{ readOnly: true, minimap: { enabled: false } }}
@@ -163,9 +140,9 @@ export default function Previews({
 
       {/* cURL */}
       <Panel title="cURL">
-        <div className="relative">
+        <div className="relative h-full min-h-[120px]">
           <Editor
-            height="140px"
+            height="100%"
             defaultLanguage="shell"
             value={curl}
             options={{
@@ -192,110 +169,51 @@ export default function Previews({
 
       {/* Response */}
       <Panel title="Response">
-        <div
-          className={`text-xs px-2 py-1 ${
-            isLoading ? "flex items-center gap-2" : ""
-          }`}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Sending...</span>
-            </>
-          ) : resp ? (
-            <span
-              className={`font-semibold ${
-                resp.status >= 200 && resp.status < 300
-                  ? "text-green-600"
-                  : "text-red-600"
-              }`}
-            >
-              {resp.status} {resp.statusText}
-            </span>
-          ) : (
-            <span className="text-muted-foreground">No response yet</span>
-          )}
+        <div className="flex h-full min-h-[200px] flex-col">
+          <div
+            className={`text-xs px-2 py-1 ${
+              isLoading ? "flex items-center gap-2" : ""
+            } flex-none`}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Sending...</span>
+              </>
+            ) : resp ? (
+              <span
+                className={`font-semibold ${
+                  resp.status >= 200 && resp.status < 300
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {resp.status} {resp.statusText}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">No response yet</span>
+            )}
+          </div>
+          <div className="relative flex-1 min-h-0">
+            <Editor
+              height="100%"
+              defaultLanguage={resp?.bodyJson ? "json" : "plaintext"}
+              value={
+                resp
+                  ? resp.bodyJson
+                    ? safeStringify(resp.bodyJson, 2)
+                    : resp.bodyText
+                  : ""
+              }
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                wordWrap: "on",
+              }}
+              theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+            />
+          </div>
         </div>
-        <Tabs defaultValue="body" className="px-2">
-          <TabsList>
-            <TabsTrigger value="body">Body</TabsTrigger>
-            <TabsTrigger value="headers">Headers</TabsTrigger>
-          </TabsList>
-          <TabsContent value="body" className="mt-2">
-            <div className="relative">
-              <Editor
-                height="260px"
-                defaultLanguage={resp?.bodyJson ? "json" : "plaintext"}
-                value={
-                  resp
-                    ? resp.bodyJson
-                      ? safeStringify(resp.bodyJson, 2)
-                      : resp.bodyText
-                    : ""
-                }
-                options={{
-                  readOnly: true,
-                  minimap: { enabled: false },
-                  wordWrap: "on",
-                }}
-                theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 h-7 w-7 p-0"
-                onClick={copyResponseBody}
-              >
-                {copyRespSuccess ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </TabsContent>
-          <TabsContent value="headers" className="mt-2">
-            <div className="relative border-t">
-              <div className="text-xs text-muted-foreground px-2 py-2">
-                Response headers
-              </div>
-              <div className="px-2 pb-10">
-                {resp?.headers ? (
-                  <div className="space-y-1 text-sm">
-                    {Object.entries(resp.headers).map(([k, v]) => (
-                      <div
-                        key={k}
-                        className="flex items-start gap-2 border-b py-1"
-                      >
-                        <div className="w-44 font-mono text-muted-foreground">
-                          {k}
-                        </div>
-                        <div className="flex-1 break-all">{String(v)}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    No headers
-                  </div>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 h-7 w-7 p-0"
-                onClick={copyHeaders}
-                title="Copy headers"
-              >
-                {copyHeadersSuccess ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </TabsContent>
-        </Tabs>
       </Panel>
     </div>
   );

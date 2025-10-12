@@ -6,6 +6,11 @@ import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    // Set to true to allow requests from any host.
+    // Use with caution, as it can be a security risk.
+    allowedHosts: true,
+  },
   define: {
     // "process.env": process.env,
     // // By default, Vite doesn't include shims for NodeJS/

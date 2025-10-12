@@ -30,6 +30,7 @@ export default function RequestBuilder() {
     pathData = {},
     queryData = {},
     headerData = {},
+    customHeaderData = {}, // <-- Added
     bodyData = {},
   } = operationState[operationKey] || {};
 
@@ -52,28 +53,24 @@ export default function RequestBuilder() {
     return getJsonBodySchema(spec, op);
   }, [spec, op]);
 
-  // Reset response and curl when operation changes, but form data is now preserved
+  // Reset response and curl when operation changes
   useEffect(() => {
     setResp(null);
     setCurl("");
   }, [operationKey]);
 
-  // Persist base URL across sessions
+  // Persist base URL
   useEffect(() => {
     try {
       const saved = localStorage.getItem("cogeass.baseUrl");
       if (saved) setBaseUrl(saved);
-    } catch {
-      // Ignore localStorage errors
-    }
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     try {
       if (baseUrl) localStorage.setItem("cogeass.baseUrl", baseUrl);
-    } catch {
-      // Ignore localStorage errors
-    }
+    } catch {}
   }, [baseUrl]);
 
   useEffect(() => {
@@ -81,13 +78,18 @@ export default function RequestBuilder() {
       setCurl("");
       return;
     }
+    // Merge spec-defined headers with user-defined custom headers
+    const mergedHeaders = {
+      ...(headerData as Record<string, string>),
+      ...customHeaderData,
+    };
     const c = buildCurlFromParts({
       baseUrl,
       path,
       method: method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
       pathParams: pathData as Record<string, string | number>,
       queryParams: queryData,
-      headerParams: headerData as Record<string, string>,
+      headerParams: mergedHeaders, // <-- Use merged headers
       body: bodySchema.schema ? bodyData : undefined,
       mediaType: bodySchema.mediaType,
     });
@@ -99,6 +101,7 @@ export default function RequestBuilder() {
     pathData,
     queryData,
     headerData,
+    customHeaderData, // <-- Added dependency
     bodyData,
     bodySchema,
   ]);
@@ -106,6 +109,11 @@ export default function RequestBuilder() {
   const handleSend = useCallback(async () => {
     if (!baseUrl) return;
     setIsLoading(true);
+    // Merge headers for the request
+    const mergedHeaders = {
+      ...(headerData as Record<string, string>),
+      ...customHeaderData,
+    };
     try {
       const r = await send({
         baseUrl,
@@ -113,7 +121,7 @@ export default function RequestBuilder() {
         method,
         pathParams: pathData as Record<string, string | number>,
         queryParams: queryData,
-        headers: headerData as Record<string, string>,
+        headers: mergedHeaders, // <-- Use merged headers
         body: bodySchema.schema ? bodyData : undefined,
         mediaType: bodySchema.mediaType ?? undefined,
       });
@@ -128,16 +136,15 @@ export default function RequestBuilder() {
     pathData,
     queryData,
     headerData,
+    customHeaderData, // <-- Added dependency
     bodyData,
     bodySchema,
   ]);
 
-  // Keyboard shortcut: Ctrl/Cmd + Enter to send
+  // Keyboard shortcut: Ctrl/Cmd + Enter
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const isSend =
-        e.key === "Enter" && (e.metaKey || e.ctrlKey) && !isLoading;
-      if (isSend) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !isLoading) {
         e.preventDefault();
         handleSend();
       }
@@ -146,13 +153,16 @@ export default function RequestBuilder() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleSend, isLoading]);
 
-  // Handlers now update the global store
+  // Handlers to update the global store
   const onPathDataChange = (data: Record<string, unknown>) =>
     setOperationState(operationKey, { pathData: data });
   const onQueryDataChange = (data: Record<string, unknown>) =>
     setOperationState(operationKey, { queryData: data });
   const onHeaderDataChange = (data: Record<string, unknown>) =>
     setOperationState(operationKey, { headerData: data });
+  const onCustomHeaderDataChange = (
+    data: Record<string, string> // <-- New handler
+  ) => setOperationState(operationKey, { customHeaderData: data });
   const onBodyDataChange = (data: Record<string, unknown>) =>
     setOperationState(operationKey, { bodyData: data });
 
@@ -178,6 +188,8 @@ export default function RequestBuilder() {
           onQueryDataChange={onQueryDataChange}
           headerData={headerData}
           onHeaderDataChange={onHeaderDataChange}
+          customHeaderData={customHeaderData} // <-- Pass down
+          onCustomHeaderDataChange={onCustomHeaderDataChange} // <-- Pass down
           bodyData={bodyData}
           onBodyDataChange={onBodyDataChange}
           onSend={handleSend}

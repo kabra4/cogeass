@@ -8,14 +8,16 @@ import validator from "@rjsf/validator-ajv8";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getJsonBodySchema, buildParamsSchema } from "@/lib/schema";
 import { shadcnTheme } from "@/rjsf";
 import { Info, Filter, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { clsx } from "clsx";
+import HeaderEditor from "./HeaderEditor";
 
 const ThemedForm = withTheme(shadcnTheme);
+
+type ActiveTab = "path" | "query" | "header" | "customHeader" | "body";
 
 interface RequestFormsProps {
   baseUrl: string;
@@ -28,6 +30,8 @@ interface RequestFormsProps {
   onQueryDataChange: (data: Record<string, unknown>) => void;
   headerData: Record<string, unknown>;
   onHeaderDataChange: (data: Record<string, unknown>) => void;
+  customHeaderData: Record<string, string>;
+  onCustomHeaderDataChange: (data: Record<string, string>) => void;
   bodyData: Record<string, unknown>;
   onBodyDataChange: (data: Record<string, unknown>) => void;
   onSend: () => Promise<void>;
@@ -47,6 +51,8 @@ export default function RequestForms({
   onQueryDataChange,
   headerData,
   onHeaderDataChange,
+  customHeaderData,
+  onCustomHeaderDataChange,
   bodyData,
   onBodyDataChange,
   onSend,
@@ -54,9 +60,7 @@ export default function RequestForms({
   op,
   spec,
 }: RequestFormsProps) {
-  const [active, setActive] = useState<"path" | "query" | "header" | "body">(
-    "path"
-  );
+  const [activeTab, setActiveTab] = useState<ActiveTab>("path");
   const [showDocs, setShowDocs] = useState(false);
   const [showOptional, setShowOptional] = useState(true);
   const [filterQ, setFilterQ] = useState("");
@@ -110,21 +114,19 @@ export default function RequestForms({
   const hasQuery = paramsSchemas?.query && hasProps(paramsSchemas.query);
   const hasHeader = paramsSchemas?.header && hasProps(paramsSchemas.header);
   const hasBody = !!bodySchema.schema;
+  const hasCustomHeader = true; // Always available
 
-  const firstAvailable =
-    (hasPath && "path") ||
-    (hasQuery && "query") ||
-    (hasHeader && "header") ||
-    (hasBody && "body") ||
-    "path";
-
-  const value = normalizeTab(active, {
-    hasPath: !!hasPath,
-    hasQuery: !!hasQuery,
-    hasHeader: !!hasHeader,
-    hasBody: !!hasBody,
-    firstAvailable: firstAvailable as "path" | "query" | "header" | "body",
-  });
+  // Set the default active tab when the operation changes
+  useMemo(() => {
+    const firstAvailable =
+      (hasPath && "path") ||
+      (hasQuery && "query") ||
+      (hasHeader && "header") ||
+      (hasCustomHeader && "customHeader") ||
+      (hasBody && "body") ||
+      "path";
+    setActiveTab(firstAvailable);
+  }, [op, hasPath, hasQuery, hasHeader, hasBody]);
 
   const methodColor =
     {
@@ -137,28 +139,11 @@ export default function RequestForms({
       OPTIONS: "bg-purple-500 text-white",
     }[method] || "bg-gray-500 text-white";
 
-  function clearActiveTab() {
-    switch (value) {
-      case "path":
-        onPathDataChange({});
-        break;
-      case "query":
-        onQueryDataChange({});
-        break;
-      case "header":
-        onHeaderDataChange({});
-        break;
-      case "body":
-        onBodyDataChange({});
-        break;
-    }
-  }
-
   return (
-    <div className="flex flex-col gap-3 h-full overflow-auto">
+    <div className="flex flex-col gap-3 h-full overflow-hidden">
       {/* Sticky sub-header for operation + controls */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="flex flex-wrap items-center gap-2 p-2">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-2">
+        <div className="flex flex-wrap items-center gap-2 py-2">
           <Badge className={clsx("w-14 justify-center", methodColor)}>
             {method}
           </Badge>
@@ -177,16 +162,8 @@ export default function RequestForms({
               "Send"
             )}
           </Button>
-          <Button
-            variant="secondary"
-            onClick={clearActiveTab}
-            disabled={!!isLoading}
-            title="Clear current tab"
-          >
-            Clear
-          </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2 p-2 pt-0">
+        <div className="flex flex-wrap items-center gap-2 pb-2">
           <Input
             placeholder="Base URL (e.g., https://petstore3.swagger.io/api/v3)"
             value={baseUrl}
@@ -221,16 +198,68 @@ export default function RequestForms({
         </div>
       </div>
 
-      <Tabs value={value} onValueChange={(v) => setActive(v as any)}>
-        <TabsList>
-          {hasPath && <TabsTrigger value="path">Path</TabsTrigger>}
-          {hasQuery && <TabsTrigger value="query">Query</TabsTrigger>}
-          {hasHeader && <TabsTrigger value="header">Header</TabsTrigger>}
-          {hasBody && <TabsTrigger value="body">Body</TabsTrigger>}
-        </TabsList>
-
+      {/* Button-based Tab Navigation */}
+      <div className="flex flex-wrap items-center gap-2 px-2">
         {hasPath && (
-          <TabsContent value="path">
+          <Button
+            variant={activeTab === "path" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("path")}
+          >
+            Path
+          </Button>
+        )}
+        {hasQuery && (
+          <Button
+            variant={activeTab === "query" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("query")}
+          >
+            Query
+          </Button>
+        )}
+        {hasHeader && (
+          <Button
+            variant={activeTab === "header" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("header")}
+          >
+            Defined Headers
+          </Button>
+        )}
+        {hasCustomHeader && (
+          <Button
+            variant={activeTab === "customHeader" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("customHeader")}
+          >
+            Custom Headers
+          </Button>
+        )}
+        {hasBody && (
+          <Button
+            variant={activeTab === "body" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("body")}
+          >
+            Body
+          </Button>
+        )}
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-grow overflow-auto px-2 pb-2">
+        {activeTab === "path" && hasPath && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPathDataChange({})}
+              >
+                Clear Path
+              </Button>
+            </div>
             <ThemedForm
               schema={paramsSchemas!.path as RJSFSchema}
               uiSchema={pathUi as UiSchema}
@@ -245,11 +274,19 @@ export default function RequestForms({
             >
               <div />
             </ThemedForm>
-          </TabsContent>
+          </div>
         )}
-
-        {hasQuery && (
-          <TabsContent value="query">
+        {activeTab === "query" && hasQuery && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onQueryDataChange({})}
+              >
+                Clear Query
+              </Button>
+            </div>
             <ThemedForm
               schema={paramsSchemas!.query as RJSFSchema}
               uiSchema={queryUi as UiSchema}
@@ -266,11 +303,22 @@ export default function RequestForms({
             >
               <div />
             </ThemedForm>
-          </TabsContent>
+          </div>
         )}
-
-        {hasHeader && (
-          <TabsContent value="header">
+        {activeTab === "header" && hasHeader && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-muted-foreground">
+                Headers defined by the specification.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onHeaderDataChange({})}
+              >
+                Clear Headers
+              </Button>
+            </div>
             <ThemedForm
               schema={paramsSchemas!.header as RJSFSchema}
               uiSchema={headerUi as UiSchema}
@@ -287,11 +335,31 @@ export default function RequestForms({
             >
               <div />
             </ThemedForm>
-          </TabsContent>
+          </div>
         )}
-
-        {hasBody && (
-          <TabsContent value="body">
+        {activeTab === "customHeader" && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Add custom headers to the request. These will override any
+              spec-defined headers with the same key.
+            </p>
+            <HeaderEditor
+              headers={customHeaderData}
+              onChange={onCustomHeaderDataChange}
+            />
+          </div>
+        )}
+        {activeTab === "body" && hasBody && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onBodyDataChange({})}
+              >
+                Clear Body
+              </Button>
+            </div>
             <ThemedForm
               schema={bodySchema.schema as RJSFSchema}
               uiSchema={bodyUi as UiSchema}
@@ -306,39 +374,15 @@ export default function RequestForms({
             >
               <div />
             </ThemedForm>
-          </TabsContent>
+          </div>
         )}
-      </Tabs>
+      </div>
     </div>
   );
 }
 
 function hasProps(schema: JSONSchema7) {
   return !!schema?.properties && Object.keys(schema.properties!).length > 0;
-}
-
-function normalizeTab<T extends string>(
-  current: T,
-  ctx: {
-    hasPath: boolean;
-    hasQuery: boolean;
-    hasHeader: boolean;
-    hasBody: boolean;
-    firstAvailable: T;
-  }
-): T {
-  switch (current) {
-    case "path":
-      return (ctx.hasPath ? "path" : ctx.firstAvailable) as T;
-    case "query":
-      return (ctx.hasQuery ? "query" : ctx.firstAvailable) as T;
-    case "header":
-      return (ctx.hasHeader ? "header" : ctx.firstAvailable) as T;
-    case "body":
-      return (ctx.hasBody ? "body" : ctx.firstAvailable) as T;
-    default:
-      return ctx.firstAvailable;
-  }
 }
 
 // Build a uiSchema that assigns specific widgets for different field types.
@@ -350,8 +394,6 @@ function buildUiSchema(schema: JSONSchema7): UiSchema {
     const key = toUiPath(path);
     const nodeType = Array.isArray(node.type) ? node.type : [node.type];
 
-    // Check if 'number' or 'integer' is in the type array.
-    // This correctly handles schemas like { "type": ["number", "null"] }.
     if (nodeType.includes("number") || nodeType.includes("integer")) {
       setUi(ui, key, { "ui:widget": "NumberWidget" });
     }
@@ -362,7 +404,6 @@ function buildUiSchema(schema: JSONSchema7): UiSchema {
     if (nodeType.includes("array") && node.items) {
       const items = node.items as JSONSchema7;
       if (items.enum) {
-        // array of enums
         setUi(ui, key, { "ui:widget": "MultiSelectEnumWidget" });
       } else if (items.type === "string") {
         setUi(ui, key, { "ui:widget": "ArrayStringWidget" });
@@ -374,7 +415,6 @@ function buildUiSchema(schema: JSONSchema7): UiSchema {
       }
     }
     if (node.anyOf || node.oneOf || node.allOf) {
-      // Best effort: dive into first variant
       const variants = (node.anyOf ||
         node.oneOf ||
         node.allOf) as JSONSchema7[];
@@ -388,7 +428,6 @@ function buildUiSchema(schema: JSONSchema7): UiSchema {
 }
 
 function toUiPath(parts: string[]): string {
-  // RJSF uiSchema nesting uses object keys; we’ll handle setting via setUi()
   return parts.join(".");
 }
 
@@ -402,7 +441,7 @@ function setUi(ui: UiSchema, dotted: string, value: Record<string, unknown>) {
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i];
     curr[s] = curr[s] || {};
-    if (i === segs.length - 1) {
+    if (i === segs.length - "1") {
       Object.assign(curr[s] as Record<string, unknown>, value);
     } else {
       curr = curr[s] as Record<string, unknown>;

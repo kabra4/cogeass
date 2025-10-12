@@ -14,6 +14,7 @@ type OperationState = {
   pathData?: Record<string, unknown>;
   queryData?: Record<string, unknown>;
   headerData?: Record<string, unknown>;
+  customHeaderData?: Record<string, string>; // User-defined headers
   bodyData?: Record<string, unknown>;
 };
 
@@ -28,7 +29,7 @@ type State = {
   setOperations: (ops: OperationRef[]) => void;
   setSelected: (op: OperationRef | null) => void;
   setBaseUrl: (url: string) => void;
-  setOperationState: (key: string, data: OperationState) => void;
+  setOperationState: (key: string, data: Partial<OperationState>) => void; // data is partial
 };
 
 export const useAppStore = create<State>()(

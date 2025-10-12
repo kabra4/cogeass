@@ -17,11 +17,14 @@ export default function ArrayStringWidget({
   const setAt = (i: number, v: string) => {
     const next = [...vals];
     next[i] = v;
-    onChange(clean(next));
+    onChange(next.map((item) => (item === "" ? "" : item || undefined)));
   };
-  const add = () => onChange(clean([...(vals || []), ""]));
-  const remove = (i: number) =>
-    onChange(clean(vals.filter((_, idx) => idx !== i)));
+
+  const add = () => onChange([...(vals || []), ""]);
+
+  const remove = (i: number) => {
+    onChange(vals.filter((_, idx) => idx !== i));
+  };
 
   return (
     <div className="space-y-2">
@@ -59,9 +62,4 @@ export default function ArrayStringWidget({
       </Button>
     </div>
   );
-}
-
-function clean(arr: string[]) {
-  // normalize: drop trailing empties
-  return arr.filter((s) => s != null);
 }

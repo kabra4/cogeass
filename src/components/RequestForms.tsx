@@ -100,31 +100,21 @@ export default function RequestForms({
   });
 
   const pathUi = useMemo(
-    () =>
-      paramsSchemas?.path
-        ? buildUiSchemaForArrayWidgets(paramsSchemas.path)
-        : undefined,
+    () => (paramsSchemas?.path ? buildUiSchema(paramsSchemas.path) : undefined),
     [paramsSchemas?.path]
   );
   const queryUi = useMemo(
     () =>
-      paramsSchemas?.query
-        ? buildUiSchemaForArrayWidgets(paramsSchemas.query)
-        : undefined,
+      paramsSchemas?.query ? buildUiSchema(paramsSchemas.query) : undefined,
     [paramsSchemas?.query]
   );
   const headerUi = useMemo(
     () =>
-      paramsSchemas?.header
-        ? buildUiSchemaForArrayWidgets(paramsSchemas.header)
-        : undefined,
+      paramsSchemas?.header ? buildUiSchema(paramsSchemas.header) : undefined,
     [paramsSchemas?.header]
   );
   const bodyUi = useMemo(
-    () =>
-      bodySchema.schema
-        ? buildUiSchemaForArrayWidgets(bodySchema.schema)
-        : undefined,
+    () => (bodySchema.schema ? buildUiSchema(bodySchema.schema) : undefined),
     [bodySchema.schema]
   );
 
@@ -291,14 +281,23 @@ function normalizeTab<T extends string>(
   }
 }
 
-// Build a uiSchema that assigns widgets for array-of-strings and array-of-enums.
-function buildUiSchemaForArrayWidgets(schema: JSONSchema7): UiSchema {
+// Build a uiSchema that assigns specific widgets for different field types.
+function buildUiSchema(schema: JSONSchema7): UiSchema {
   const ui: UiSchema = {};
   function walk(node: JSONSchema7 | boolean, path: string[]) {
     if (!node || typeof node === "boolean") return;
-    if (node.type === "array" && node.items) {
+
+    const key = toUiPath(path);
+    const nodeType = Array.isArray(node.type) ? node.type : [node.type];
+
+    // Check if 'number' or 'integer' is in the type array.
+    // This correctly handles schemas like { "type": ["number", "null"] }.
+    if (nodeType.includes("number") || nodeType.includes("integer")) {
+      setUi(ui, key, { "ui:widget": "NumberWidget" });
+    }
+
+    if (nodeType.includes("array") && node.items) {
       const items = node.items as JSONSchema7;
-      const key = toUiPath(path);
       if (items.enum) {
         // array of enums
         setUi(ui, key, { "ui:widget": "MultiSelectEnumWidget" });
@@ -306,7 +305,7 @@ function buildUiSchemaForArrayWidgets(schema: JSONSchema7): UiSchema {
         setUi(ui, key, { "ui:widget": "ArrayStringWidget" });
       }
     }
-    if (node.type === "object" && node.properties) {
+    if (nodeType.includes("object") && node.properties) {
       for (const [k, v] of Object.entries(node.properties)) {
         walk(v as JSONSchema7, [...path, k]);
       }

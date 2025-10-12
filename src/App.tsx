@@ -1,9 +1,10 @@
+import { useState, useEffect } from "react";
 import SpecLoader from "@/components/SpecLoader";
 import OperationExplorer from "@/components/OperationExplorer";
 import RequestBuilder from "@/components/RequestBuilder";
 import { useAppStore } from "@/store/useAppStore";
 import { ThemeProvider } from "next-themes";
-
+import { useHasHydrated } from "@/hooks/useHasHydrated";
 import {
   Dialog,
   DialogContent,
@@ -21,26 +22,68 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { Loader2 } from "lucide-react";
+import { getSpecFromDB } from "@/lib/db";
 
 export default function App() {
-  const spec = useAppStore((s) => s.spec);
-  const setSpec = useAppStore((s) => s.setSpec);
-  const setOps = useAppStore((s) => s.setOperations);
+  const hasHydrated = useHasHydrated();
+  const { spec, specId, setSpec, setOperations } = useAppStore((s) => s); // Corrected from setOps
+  const [isAutoLoading, setIsAutoLoading] = useState(false);
+
+  useEffect(() => {
+    const autoLoadPreviousSpec = async () => {
+      if (hasHydrated && !spec && specId) {
+        setIsAutoLoading(true);
+        try {
+          const specData = await getSpecFromDB();
+          if (specData) {
+            setSpec(specData, specId);
+            setOperations(listOperations(specData)); // Corrected from setOps
+          } else {
+            console.warn("specId found, but no matching spec in IndexedDB.");
+          }
+        } catch (error) {
+          console.error("Error reading from IndexedDB:", error);
+          toast.error("Failed to read from the local database.");
+        } finally {
+          setIsAutoLoading(false);
+        }
+      }
+    };
+    autoLoadPreviousSpec();
+  }, [hasHydrated, spec, specId, setSpec, setOperations]); // Corrected dependency array
 
   const loadPetstore = async () => {
     const url = "https://petstore3.swagger.io/api/v3/openapi.json";
+    setIsAutoLoading(true);
     try {
       const specData = await loadSpec(url);
-      setSpec(specData);
-      setOps(listOperations(specData));
+      setSpec(specData, url);
+      setOperations(listOperations(specData)); // Corrected from setOps
     } catch (error) {
       toast.error("Failed to load Petstore example");
+    } finally {
+      setIsAutoLoading(false);
     }
   };
+
+  if (!hasHydrated) {
+    return null;
+  }
+
+  if (isAutoLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-3 text-sm">Loading session...</span>
+      </div>
+    );
+  }
+
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <>
-        {spec && (
+        {spec ? (
           <div className="p-4 h-screen grid grid-rows-[auto_1fr] gap-4">
             <div className="flex items-center gap-2">
               <SpecLoader />
@@ -73,23 +116,24 @@ export default function App() {
               </ResizablePanelGroup>
             </div>
           </div>
+        ) : (
+          <Dialog open={true}>
+            <DialogContent className="p-4">
+              <DialogHeader>
+                <DialogTitle>Welcome to Plyt</DialogTitle>
+                <DialogDescription>
+                  Load an OpenAPI specification by URL or file to get started.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-4">
+                <SpecLoader />
+                <Button variant="outline" onClick={loadPetstore}>
+                  Or try the Petstore example
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
-        <Dialog open={!spec}>
-          <DialogContent className="p-4">
-            <DialogHeader>
-              <DialogTitle>Welcome to Plyt</DialogTitle>
-              <DialogDescription>
-                Load an OpenAPI specification by URL or file to get started.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-4">
-              <SpecLoader />
-              <Button variant="outline" onClick={loadPetstore}>
-                Or try the Petstore example
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
         <Toaster />
       </>
     </ThemeProvider>

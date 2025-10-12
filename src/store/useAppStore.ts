@@ -10,7 +10,6 @@ type OperationRef = {
   tag: string;
 };
 
-// Structure to hold the state for a single operation's forms
 type OperationState = {
   pathData?: Record<string, unknown>;
   queryData?: Record<string, unknown>;
@@ -25,7 +24,7 @@ type State = {
   selected: OperationRef | null;
   baseUrl?: string;
   operationState: Record<string, OperationState>;
-  setSpec: (s: DerefSpec, id: string) => void;
+  setSpec: (spec: DerefSpec, id: string) => void;
   setOperations: (ops: OperationRef[]) => void;
   setSelected: (op: OperationRef | null) => void;
   setBaseUrl: (url: string) => void;
@@ -43,13 +42,12 @@ export const useAppStore = create<State>()(
       operationState: {},
 
       setSpec: (spec, id) => {
-        // If the new spec is different from the old one, clear related state
         if (get().specId !== id) {
           set({
             spec,
             specId: id,
             selected: null,
-            operationState: {}, // Clear all saved form data for the old spec
+            operationState: {},
           });
         } else {
           set({ spec, specId: id });
@@ -71,8 +69,7 @@ export const useAppStore = create<State>()(
       },
     }),
     {
-      name: "plyt-storage", // Name for the local storage item
-      // Persist only the necessary fields
+      name: "plyt-storage",
       partialize: (state) => ({
         specId: state.specId,
         selected: state.selected,

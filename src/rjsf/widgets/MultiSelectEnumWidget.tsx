@@ -57,7 +57,12 @@ export default function MultiSelectEnumWidget({
     onChange(Array.from(newSelected));
   };
 
-  const handleRemove = (optionValue: any) => {
+  const handleRemove = (
+    e: React.PointerEvent | React.KeyboardEvent,
+    optionValue: any
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
     const newSelected = new Set(selectedValues);
     newSelected.delete(optionValue);
     onChange(Array.from(newSelected));
@@ -67,26 +72,14 @@ export default function MultiSelectEnumWidget({
     selectedValues.has(opt.value)
   );
 
-  // This is the key to the solution. It intercepts the pointer down event on the trigger.
-  const handleTriggerPointerDown = (e: React.PointerEvent) => {
-    const target = e.target as HTMLElement;
-    // Check if the clicked element (or its parent) is a dismiss button.
-    // We add a `data-dismiss-badge` attribute to the button to identify it.
-    if (target.closest('[data-dismiss-badge="true"]')) {
-      // If it is, we prevent the default behavior of the trigger, which is to open the dropdown.
-      e.preventDefault();
-    }
-  };
-
   return (
     <DropdownMenu>
-      {/* The trigger now wraps the entire visual component */}
-      <DropdownMenuTrigger asChild onPointerDown={handleTriggerPointerDown}>
+      <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
           className="w-full h-auto min-h-9 justify-between"
           disabled={disabled || readonly}
-          role="combobox" // Add role for accessibility
+          role="combobox"
         >
           <div className="flex-1 text-left font-normal truncate">
             {selectedOptions.length > 0 ? (
@@ -98,18 +91,20 @@ export default function MultiSelectEnumWidget({
                     className="font-normal pl-2 pr-1"
                   >
                     <span>{option.label}</span>
-                    <button
-                      type="button"
+                    <span
+                      role="button"
+                      tabIndex={0}
                       aria-label={`Remove ${option.label}`}
-                      // This attribute is used by the pointer down handler to identify the dismiss button
-                      data-dismiss-badge="true"
-                      // The regular onClick handler to perform the removal
-                      onClick={() => handleRemove(option.value)}
-                      disabled={disabled || readonly}
+                      onPointerDown={(e) => handleRemove(e, option.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          handleRemove(e, option.value);
+                        }
+                      }}
                       className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-background/50"
                     >
                       <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                    </button>
+                    </span>
                   </Badge>
                 ))}
               </div>
@@ -129,7 +124,6 @@ export default function MultiSelectEnumWidget({
       >
         <DropdownMenuLabel>{schema.title || "Options"}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-
         <div className="max-h-60 overflow-y-auto">
           {enumOptions.map((option) => {
             const isSelected = selectedValues.has(option.value);

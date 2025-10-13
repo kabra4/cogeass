@@ -23,7 +23,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { Loader2, Server } from "lucide-react";
-import { getSpecFromDB } from "@/lib/db";
+import { specRepository } from "@/lib/storage/SpecRepository";
 import { Input } from "@/components/ui/input";
 
 export default function App() {
@@ -35,12 +35,15 @@ export default function App() {
 
   useEffect(() => {
     const autoLoadPreviousSpec = async () => {
-      if (hasHydrated && !spec && specId) {
+      if (hasHydrated && !spec) {
         setIsAutoLoading(true);
         try {
-          const specData = await getSpecFromDB();
-          if (specData) {
-            setSpec(specData, specId!);
+          // Get the ID of the last spec, then fetch it
+          const lastUsedId = await specRepository.getLastUsedId();
+          if (lastUsedId) {
+            const specData = await specRepository.getById(lastUsedId);
+            if (!specData) return;
+            setSpec(specData, lastUsedId);
             setOperations(listOperations(specData));
           } else {
             console.warn("specId found, but no matching spec in IndexedDB.");
@@ -54,14 +57,14 @@ export default function App() {
       }
     };
     autoLoadPreviousSpec();
-  }, [hasHydrated, spec, specId, setSpec, setOperations]);
+  }, [hasHydrated, spec, setSpec, setOperations]);
 
   // Persist base URL from localStorage on startup
   useEffect(() => {
     if (!hasHydrated) return;
     const saved = localStorage.getItem("cogeass.baseUrl");
     if (saved) setBaseUrl(saved);
-  }, [hasHydrated, setBaseUrl]);
+  }, [hasHydrated, setBaseUrl]); // specId removed from dependencies
 
   // Save base URL to localStorage when it changes
   useEffect(
@@ -89,9 +92,9 @@ export default function App() {
     const url = "https://petstore3.swagger.io/api/v3/openapi.json";
     setIsAutoLoading(true);
     try {
-      const specData = await loadSpec(url);
-      setSpec(specData, url);
-      setOperations(listOperations(specData));
+      const { spec, id } = await loadSpec(url);
+      setSpec(spec, id);
+      setOperations(listOperations(spec));
     } catch {
       toast.error("Failed to load Petstore example");
     } finally {

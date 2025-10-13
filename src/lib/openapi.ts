@@ -1,7 +1,7 @@
 import SwaggerParser from "@apidevtools/swagger-parser";
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 import converter from "swagger2openapi";
-import { saveSpecToDB } from "./db";
+import { specRepository } from "@/lib/storage/SpecRepository";
 import { invoke } from "@tauri-apps/api/tauri";
 import yaml from "js-yaml";
 
@@ -19,7 +19,7 @@ const isTauri = () =>
  * @param input - A URL string or a File object.
  * @returns A fully dereferenced OpenAPI 3.0+ specification.
  */
-export async function loadSpec(input: string | File): Promise<DerefSpec> {
+export async function loadSpec(input: string | File): Promise<{ spec: DerefSpec; id: string }> {
   try {
     let specObject: any;
 
@@ -54,9 +54,14 @@ export async function loadSpec(input: string | File): Promise<DerefSpec> {
       specToProcess
     )) as unknown as DerefSpec;
 
-    await saveSpecToDB(dereferencedDoc);
+    const specId =
+      typeof input === "string"
+        ? input
+        : `${input.name}-${input.size}-${input.lastModified}`;
 
-    return dereferencedDoc;
+    await specRepository.save(specId, dereferencedDoc);
+
+    return { spec: dereferencedDoc, id: specId };
   } catch (error) {
     console.error("Failed during spec loading or conversion:", error);
     throw new Error(

@@ -1,24 +1,5 @@
 import { toCurl, type Method } from "./curl";
-import { invoke } from "@tauri-apps/api/tauri";
-
-// Fetch with timeout and abort support
-export async function fetchWithTimeout(
-  input: RequestInfo,
-  init: RequestInit & { timeoutMs?: number } = {}
-): Promise<Response> {
-  const { timeoutMs = 15000, signal } = init;
-  const ac = new AbortController();
-  const id = setTimeout(() => ac.abort(), timeoutMs);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: signal ?? ac.signal,
-    });
-  } finally {
-    clearTimeout(id);
-  }
-}
+import { httpClient } from "@/lib/http";
 
 export function buildCurlFromParts(parts: {
   baseUrl: string;
@@ -96,17 +77,6 @@ export type SendParts = {
   signal?: AbortSignal;
 };
 
-const isTauri = () =>
-  typeof window !== "undefined" &&
-  (window as unknown as Record<string, unknown>).__TAURI__ !== undefined;
-
-type TauriResponse = {
-  status: number;
-  status_text: string;
-  headers: Record<string, string>;
-  body_text: string;
-};
-
 export async function send(parts: SendParts) {
   const url = buildUrl({
     baseUrl: parts.baseUrl,
@@ -128,65 +98,12 @@ export async function send(parts: SendParts) {
         : JSON.stringify(parts.body)
       : undefined;
 
-  // If in a Tauri window, use the Rust backend to make the request
-  if (isTauri()) {
-    try {
-      console.log("Tauri environment detected, making request via backend...");
-      const tauriResponse = await invoke<TauriResponse>("make_request", {
-        method,
-        url,
-        headers,
-        body,
-      });
-
-      let json: unknown = null;
-      try {
-        json = JSON.parse(tauriResponse.body_text);
-      } catch {
-        // Ignore JSON parsing errors
-      }
-
-      return {
-        status: tauriResponse.status,
-        statusText: tauriResponse.status_text,
-        headers: tauriResponse.headers,
-        bodyText: tauriResponse.body_text,
-        bodyJson: json,
-      };
-    } catch (error) {
-      console.error("Tauri request failed:", error);
-      const errorMsg =
-        typeof error === "string" ? error : "An unknown error occurred";
-      return {
-        status: 500,
-        statusText: "Tauri Command Error",
-        headers: {},
-        bodyText: errorMsg,
-        bodyJson: { error: errorMsg },
-      };
-    }
-  }
-
-  // Otherwise, fall back to the browser's fetch API with timeout
-  const res = await fetchWithTimeout(url, {
+  return httpClient.send({
+    url,
     method,
     headers,
     body,
     timeoutMs: parts.timeoutMs,
     signal: parts.signal,
   });
-  const text = await res.text();
-  let json: unknown = null;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    // Ignore JSON parsing errors
-  }
-  return {
-    status: res.status,
-    statusText: res.statusText,
-    headers: Object.fromEntries(res.headers.entries()),
-    bodyText: text,
-    bodyJson: json,
-  };
 }

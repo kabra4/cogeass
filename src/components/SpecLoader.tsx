@@ -16,14 +16,8 @@ export default function SpecLoader() {
   async function doLoad(specInput: string | File) {
     setIsLoading(true);
     try {
-      const spec = await loadSpec(specInput);
-      // Generate a unique ID for the spec to manage state persistence
-      const specId =
-        typeof specInput === "string"
-          ? specInput
-          : `${specInput.name}-${specInput.size}-${specInput.lastModified}`;
-
-      setSpec(spec, specId);
+      const { spec, id } = await loadSpec(specInput);
+      setSpec(spec, id);
       setOps(listOperations(spec));
     } catch (error) {
       toast.error("Failed to load or parse the specification.");

@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { DerefSpec } from "@/lib/openapi";
+import { createSpecSlice } from "./specSlice";
+import { createRequestSlice } from "./requestSlice";
+import { createUiSlice } from "./uiSlice";
+import type { AppState } from './types';
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 
 // Utility to resolve server variables in a server URL
@@ -21,97 +24,31 @@ function resolveServerVariables(
   return resolvedUrl;
 }
 
-type OperationRef = {
-  method: string;
-  path: string;
-  op: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject;
-  tag: string;
-};
-
-type OperationState = {
-  pathData?: Record<string, unknown>;
-  queryData?: Record<string, unknown>;
-  headerData?: Record<string, unknown>;
-  customHeaderData?: Record<string, string>; // User-defined headers
-  bodyData?: Record<string, unknown>;
-};
-
-type State = {
-  spec: DerefSpec | null;
-  specId: string | null;
-  operations: OperationRef[];
-  selected: OperationRef | null;
-  baseUrl?: string;
-  operationState: Record<string, OperationState>;
-  setSpec: (spec: DerefSpec, id: string) => void;
-  setOperations: (ops: OperationRef[]) => void;
-  setSelected: (op: OperationRef | null) => void;
-  setBaseUrl: (url: string) => void;
-  setOperationState: (key: string, data: Partial<OperationState>) => void; // data is partial
-};
-
-export const useAppStore = create<State>()(
+export const useAppStore = create<AppState>()(
   persist(
-    (set, get) => ({
-      spec: null,
-      specId: null,
-      operations: [],
-      selected: null,
-      baseUrl: "",
-      operationState: {},
-
-      setSpec: (spec, id) => {
-        const currentState = get();
-
-        // Set default baseUrl from spec.servers if not already set
-        let newBaseUrl = currentState.baseUrl;
-        if (!newBaseUrl && spec.servers?.[0]?.url) {
-          const defaultServer = spec.servers[0];
-          newBaseUrl = resolveServerVariables(
-            defaultServer.url,
-            defaultServer.variables
-          );
-        }
-
-        if (currentState.specId !== id) {
-          set({
-            spec,
-            specId: id,
-            selected: null,
-            operationState: {},
-            baseUrl: newBaseUrl,
-          });
-        } else {
-          set({
-            spec,
-            specId: id,
-            baseUrl: newBaseUrl,
-          });
-        }
-      },
-
-      setOperations: (operations) => set({ operations }),
-      setSelected: (selected) => set({ selected }),
-      setBaseUrl: (baseUrl) => set({ baseUrl }),
-
-      setOperationState: (key, data) => {
-        const currentData = get().operationState[key] || {};
-        set({
-          operationState: {
-            ...get().operationState,
-            [key]: { ...currentData, ...data },
-          },
-        });
-      },
+    (set, get, api) => ({
+      ...createSpecSlice(set, get, api),
+      ...createRequestSlice(set, get, api),
+      ...createUiSlice(set, get, api),
     }),
     {
       name: "cogeass-storage",
+      // Persist only lightweight, user-generated data.
+      // The full 'spec' and 'operations' are derived, not persisted.
       partialize: (state) => ({
         specId: state.specId,
         selected: state.selected,
         baseUrl: state.baseUrl,
         operationState: state.operationState,
       }),
+      // Custom merge logic for handling spec/base URL initialization
+      merge: (persistedState, currentState) => {
+        const state = persistedState as Partial<AppState>;
+        // If baseUrl is empty after hydration, try to derive it from spec
+        // (This logic needs to be triggered after the spec is auto-loaded in App.tsx)
+        // For now, a direct merge is fine.
+        return { ...currentState, ...state };
+      },
     }
   )
 );

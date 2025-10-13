@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import SpecLoader from "@/components/SpecLoader";
-import OperationExplorer from "@/components/OperationExplorer";
-import RequestBuilder from "@/components/RequestBuilder";
 import { useAppStore } from "@/store/useAppStore";
 import { ThemeProvider } from "next-themes";
 import { useHasHydrated } from "@/hooks/useHasHydrated";
@@ -17,21 +15,22 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { loadSpec, listOperations } from "@/lib/openapi";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
 import { Loader2, Server } from "lucide-react";
 import { specRepository } from "@/lib/storage/SpecRepository";
 import { Input } from "@/components/ui/input";
+import Sidebar from "@/components/Sidebar";
+import WorkspacePage from "@/pages/WorkspacePage";
+import EnvironmentsPage from "@/pages/EnvironmentsPage";
+import HeadersPage from "@/pages/HeadersPage";
+
+type ActivePage = "workspace" | "envs" | "headers";
 
 export default function App() {
   const hasHydrated = useHasHydrated();
-  const { spec, specId, setSpec, setOperations, baseUrl, setBaseUrl } =
+  const { spec, setSpec, setOperations, baseUrl, setBaseUrl } =
     useAppStore((s) => s);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
-  const [layout, setLayout] = useState<[number, number] | null>(null);
+  const [activePage, setActivePage] = useState<ActivePage>("workspace");
 
   useEffect(() => {
     const autoLoadPreviousSpec = async () => {
@@ -72,22 +71,6 @@ export default function App() {
     [baseUrl]
   );
 
-  // Persist layout of left/right panels
-  useEffect(() => {
-    if (!hasHydrated) return;
-    try {
-      const raw = localStorage.getItem("cogeass.layout");
-      if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr) && arr.length === 2) {
-          setLayout([arr[0], arr[1]]);
-        }
-      }
-    } catch {
-      // Ignore localStorage errors
-    }
-  }, [hasHydrated]);
-
   const loadPetstore = async () => {
     const url = "https://petstore3.swagger.io/api/v3/openapi.json";
     setIsAutoLoading(true);
@@ -115,79 +98,64 @@ export default function App() {
     );
   }
 
+  const renderActivePage = () => {
+    switch (activePage) {
+      case "workspace":
+        return <WorkspacePage />;
+      case "envs":
+        return <EnvironmentsPage />;
+      case "headers":
+        return <HeadersPage />;
+      default:
+        return <WorkspacePage />;
+    }
+  };
+
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <>
         {spec ? (
-          <div className="h-screen grid grid-rows-[auto_1fr]">
-            {/* Sticky header */}
-            <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="px-4 h-12 flex items-center gap-3">
-                <div className="text-sm font-semibold tracking-tight">
-                  CoGeass
-                </div>
-                <div className="text-xs text-muted-foreground truncate max-w-[250px]">
-                  {(() => {
-                    try {
-                      // Best effort to read spec title
-                      const specObj = spec as Record<string, any>;
-                      return specObj?.info?.title || "";
-                    } catch {
-                      return "";
-                    }
-                  })()}
-                </div>
-                <div className="flex-1 relative">
-                  <Server className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Base URL"
-                    value={baseUrl || ""}
-                    onChange={(e) => setBaseUrl(e.target.value)}
-                    className="h-8 pl-8"
-                  />
-                </div>
-                <div className="ml-auto flex items-center gap-2">
-                  <SpecLoader />
-                  <ThemeToggle />
+          <div className="h-screen flex">
+            <Sidebar activeItem={activePage} onItemClick={setActivePage} />
+            <main className="flex-1 flex flex-col">
+              {/* Sticky header */}
+              <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                <div className="px-4 h-14 flex items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="font-bold text-lg tracking-tight">
+                      CoGeass
+                    </div>
+                    <div className="text-sm text-muted-foreground truncate max-w-[250px]">
+                      {(() => {
+                        try {
+                          // Best effort to read spec title
+                          const specObj = spec as Record<string, any>;
+                          return specObj?.info?.title || "";
+                        } catch {
+                          return "";
+                        }
+                      })()}
+                    </div>
+                  </div>
+                  <div className="flex-1 flex justify-center px-8">
+                    <div className="relative w-full max-w-xl">
+                      <Server className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Base URL"
+                        value={baseUrl || ""}
+                        onChange={(e) => setBaseUrl(e.target.value)}
+                        className="h-9 pl-9"
+                      />
+                    </div>
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                    <SpecLoader />
+                    <ThemeToggle />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="h-full overflow-hidden p-4">
-              <ResizablePanelGroup
-                direction="horizontal"
-                className="h-full gap-4"
-                onLayout={(sizes) => {
-                  try {
-                    localStorage.setItem(
-                      "cogeass.layout",
-                      JSON.stringify(sizes)
-                    );
-                  } catch {
-                    // Ignore localStorage errors
-                  }
-                }}
-              >
-                <ResizablePanel
-                  defaultSize={layout?.[0] ?? 25}
-                  minSize={20}
-                  className="h-full"
-                >
-                  <div className="border rounded-lg p-3 overflow-auto h-full">
-                    <OperationExplorer />
-                  </div>
-                </ResizablePanel>
-                <ResizableHandle className="bg-border" />
-                <ResizablePanel
-                  defaultSize={layout?.[1] ?? 75}
-                  minSize={50}
-                  className="h-full"
-                >
-                  <div className="border rounded-lg p-3 overflow-auto h-full">
-                    <RequestBuilder />
-                  </div>
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            </div>
+              {renderActivePage()}
+            </main>
           </div>
         ) : (
           <Dialog open={true}>

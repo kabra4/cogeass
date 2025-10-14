@@ -91,8 +91,8 @@ export default function App() {
 
   if (isAutoLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex justify-center items-center w-screen h-screen bg-background text-foreground">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         <span className="ml-3 text-sm">Loading session...</span>
       </div>
     );
@@ -115,14 +115,14 @@ export default function App() {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <>
         {spec ? (
-          <div className="h-screen flex">
+          <div className="flex h-screen">
             <Sidebar activeItem={activePage} onItemClick={setActivePage} />
-            <main className="flex-1 flex flex-col">
+            <main className="flex flex-col flex-1">
               {/* Sticky header */}
               <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="px-4 h-14 flex items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="font-bold text-lg tracking-tight">
+                <div className="flex items-center px-4 h-14">
+                  <div className="flex gap-3 items-center">
+                    <div className="text-lg font-bold tracking-tight">
                       CoGeass
                     </div>
                     <div className="text-sm text-muted-foreground truncate max-w-[250px]">
@@ -137,18 +137,18 @@ export default function App() {
                       })()}
                     </div>
                   </div>
-                  <div className="flex-1 flex justify-center px-8">
+                  <div className="flex flex-1 justify-center px-8">
                     <div className="relative w-full max-w-xl">
-                      <Server className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Server className="absolute top-2.5 left-2.5 w-4 h-4 text-muted-foreground" />
                       <Input
                         placeholder="Base URL"
                         value={baseUrl || ""}
                         onChange={(e) => setBaseUrl(e.target.value)}
-                        className="h-9 pl-9"
+                        className="pl-9 h-9"
                       />
                     </div>
                   </div>
-                  <div className="ml-auto flex items-center gap-2">
+                  <div className="flex gap-2 items-center ml-auto">
                     <SpecLoader />
                     <ThemeToggle />
                   </div>

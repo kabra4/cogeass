@@ -9,6 +9,10 @@ export type OperationRef = {
   tag: string;
 };
 
+export type SecurityScheme =
+  | OpenAPIV3.SecuritySchemeObject
+  | OpenAPIV3_1.SecuritySchemeObject;
+
 export interface SpecSlice {
   spec: DerefSpec | null;
   specId: string | null;
@@ -37,4 +41,16 @@ export interface UiSlice {
   setSelected: (op: OperationRef | null) => void;
 }
 
-export type AppState = SpecSlice & RequestSlice & UiSlice;
+export type AuthState = {
+  schemes: Record<string, SecurityScheme>;
+  values: Record<string, Record<string, string>>; // e.g., { "myApiKey": { "apiKey": "12345" } }
+};
+
+export interface AuthSlice {
+  auth: AuthState;
+  setAuthSchemes: (schemes: Record<string, SecurityScheme>) => void;
+  setAuthValue: (schemeName: string, value: Record<string, string>) => void;
+  clearAuth: () => void;
+}
+
+export type AppState = SpecSlice & RequestSlice & UiSlice & AuthSlice;

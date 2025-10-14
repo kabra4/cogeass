@@ -1,4 +1,4 @@
-import { Briefcase, Layers, MessageSquare } from "lucide-react";
+import { Briefcase, Layers, MessageSquare, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -8,13 +8,14 @@ import {
 } from "@/components/ui/tooltip";
 
 type NavItem = {
-  id: "workspace" | "envs" | "headers";
+  id: "workspace" | "auth" | "envs" | "headers";
   label: string;
   icon: React.ElementType;
 };
 
 const navItems: NavItem[] = [
   { id: "workspace", label: "Workspace", icon: Briefcase },
+  { id: "auth", label: "Authorization", icon: Shield },
   { id: "envs", label: "Environments", icon: Layers },
   { id: "headers", label: "Headers", icon: MessageSquare },
 ];
@@ -35,8 +36,7 @@ export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
                 onClick={() => onItemClick(item.id)}
                 className={cn(
                   "flex flex-col items-center justify-center w-12 h-12 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
-                  activeItem === item.id &&
-                    "bg-accent text-accent-foreground"
+                  activeItem === item.id && "bg-accent text-accent-foreground"
                 )}
               >
                 <item.icon className="w-5 h-5" />

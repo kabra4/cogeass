@@ -22,13 +22,15 @@ import Sidebar from "@/components/Sidebar";
 import WorkspacePage from "@/pages/WorkspacePage";
 import EnvironmentsPage from "@/pages/EnvironmentsPage";
 import HeadersPage from "@/pages/HeadersPage";
+import AuthPage from "@/pages/AuthPage";
 
-type ActivePage = "workspace" | "envs" | "headers";
+type ActivePage = "workspace" | "auth" | "envs" | "headers";
 
 export default function App() {
   const hasHydrated = useHasHydrated();
-  const { spec, setSpec, setOperations, baseUrl, setBaseUrl } =
-    useAppStore((s) => s);
+  const { spec, setSpec, setOperations, baseUrl, setBaseUrl } = useAppStore(
+    (s) => s
+  );
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [activePage, setActivePage] = useState<ActivePage>("workspace");
 
@@ -102,6 +104,8 @@ export default function App() {
     switch (activePage) {
       case "workspace":
         return <WorkspacePage />;
+      case "auth":
+        return <AuthPage />;
       case "envs":
         return <EnvironmentsPage />;
       case "headers":

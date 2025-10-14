@@ -2,18 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { getJsonBodySchema } from "@/lib/schema";
 import { send, buildCurlFromParts } from "@/lib/request";
+import { resolveOperationAuth } from "@/lib/auth";
 import { shallow } from "zustand/shallow";
 
 // Define selector hooks for performance
 const useSelectedOp = () => useAppStore((s) => s.selected);
 const useOperationStateForKey = (key: string) =>
   useAppStore((s) => s.operationState[key], shallow);
+const useAuthState = () => useAppStore((s) => s.auth, shallow);
 
 export function useRequestBuilderState() {
   const spec = useAppStore((s) => s.spec);
   const baseUrl = useAppStore((s) => s.baseUrl);
   const selected = useSelectedOp();
   const setOperationState = useAppStore((s) => s.setOperationState);
+  const authState = useAuthState();
 
   const operationKey = useMemo(
     () => (selected ? `${selected.method}:${selected.path}` : ""),
@@ -37,6 +40,11 @@ export function useRequestBuilderState() {
   const path = selected?.path ?? "";
   const op = selected?.op;
 
+  const appliedAuth = useMemo(
+    () => resolveOperationAuth(op, authState),
+    [op, authState]
+  );
+
   const bodySchema = useMemo(() => {
     if (!spec || !op) return { schema: null, mediaType: null };
     return getJsonBodySchema(spec, op);
@@ -53,17 +61,24 @@ export function useRequestBuilderState() {
       Object.fromEntries(
         Object.entries(obj || {}).map(([k, v]) => [k.toLowerCase(), String(v)])
       );
+    // Auth headers should overwrite any others
     const mergedHeaders = {
       ...norm(headerData as Record<string, string>),
       ...norm(customHeaderData),
+      ...norm(appliedAuth.headers),
     };
+    const mergedQueryParams = {
+      ...queryData,
+      ...appliedAuth.queryParams,
+    };
+
     const c = buildCurlFromParts({
       baseUrl,
       path,
       method: method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
       pathParams: pathData as Record<string, string | number>,
-      queryParams: queryData,
-      headerParams: mergedHeaders, // <-- Use merged headers
+      queryParams: mergedQueryParams,
+      headerParams: mergedHeaders,
       body: bodySchema.schema ? bodyData : undefined,
       mediaType: bodySchema.mediaType,
     });
@@ -75,9 +90,10 @@ export function useRequestBuilderState() {
     pathData,
     queryData,
     headerData,
-    customHeaderData, // <-- Added dependency
+    customHeaderData,
     bodyData,
     bodySchema,
+    appliedAuth,
   ]);
 
   // handleSend, handleCancel, and shortcut useEffect
@@ -99,18 +115,25 @@ export function useRequestBuilderState() {
       Object.fromEntries(
         Object.entries(obj || {}).map(([k, v]) => [k.toLowerCase(), String(v)])
       );
+    // Auth headers should overwrite any others
     const mergedHeaders = {
       ...norm(headerData as Record<string, string>),
       ...norm(customHeaderData),
+      ...norm(appliedAuth.headers),
     };
+    const mergedQueryParams = {
+      ...queryData,
+      ...appliedAuth.queryParams,
+    };
+
     try {
       const r = await send({
         baseUrl,
         path,
         method,
         pathParams: pathData as Record<string, string | number>,
-        queryParams: queryData,
-        headers: mergedHeaders, // <-- Use merged headers
+        queryParams: mergedQueryParams,
+        headers: mergedHeaders,
         body: bodySchema.schema ? bodyData : undefined,
         mediaType: bodySchema.mediaType ?? undefined,
         timeoutMs: 15000,
@@ -152,9 +175,10 @@ export function useRequestBuilderState() {
     pathData,
     queryData,
     headerData,
-    customHeaderData, // <-- Added dependency
+    customHeaderData,
     bodyData,
     bodySchema,
+    appliedAuth,
   ]);
 
   const handleCancel = useCallback(() => {

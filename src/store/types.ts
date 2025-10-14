@@ -53,4 +53,25 @@ export interface AuthSlice {
   clearAuth: () => void;
 }
 
-export type AppState = SpecSlice & RequestSlice & UiSlice & AuthSlice;
+export type Environment = {
+  id: string;
+  name: string;
+  variables: Record<string, string>;
+};
+
+export interface EnvironmentSlice {
+  environments: Record<string, Environment>;
+  activeEnvironmentId: string | null;
+  addEnvironment: (name: string) => string;
+  removeEnvironment: (id: string) => void;
+  setActiveEnvironment: (id: string | null) => void;
+  setVariable: (environmentId: string, key: string, value: string) => void;
+  removeVariable: (environmentId: string, key: string) => void;
+  updateEnvironmentName: (id: string, name: string) => void;
+}
+
+export type AppState = SpecSlice &
+  RequestSlice &
+  UiSlice &
+  AuthSlice &
+  EnvironmentSlice;

@@ -1,12 +1,14 @@
-import type { StateCreator } from 'zustand';
-import type { AppState, AuthSlice, AuthState } from './types';
+import type { StateCreator } from "zustand";
+import type { AppState, AuthSlice, AuthState } from "./types";
 
 const initialAuthState: AuthState = {
   schemes: {},
   values: {},
 };
 
-export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, get) => ({
+export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
+  set
+) => ({
   auth: initialAuthState,
   setAuthSchemes: (schemes) => {
     set((state) => ({

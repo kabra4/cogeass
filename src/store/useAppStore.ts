@@ -4,26 +4,8 @@ import { createSpecSlice } from "./specSlice";
 import { createRequestSlice } from "./requestSlice";
 import { createUiSlice } from "./uiSlice";
 import { createAuthSlice } from "./authSlice";
+import { createEnvironmentSlice } from "./environmentSlice";
 import type { AppState } from "./types";
-import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
-
-// Utility to resolve server variables in a server URL
-function resolveServerVariables(
-  url: string,
-  variables?: Record<
-    string,
-    OpenAPIV3.ServerVariableObject | OpenAPIV3_1.ServerVariableObject
-  >
-): string {
-  if (!variables) return url;
-
-  let resolvedUrl = url;
-  for (const [name, variable] of Object.entries(variables)) {
-    const value = variable.default || variable.enum?.[0] || "";
-    resolvedUrl = resolvedUrl.replace(`{${name}}`, String(value));
-  }
-  return resolvedUrl;
-}
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -32,6 +14,7 @@ export const useAppStore = create<AppState>()(
       ...createRequestSlice(set, get, api),
       ...createUiSlice(set, get, api),
       ...createAuthSlice(set, get, api),
+      ...createEnvironmentSlice(set, get, api),
     }),
     {
       name: "cogeass-storage",
@@ -43,6 +26,8 @@ export const useAppStore = create<AppState>()(
         baseUrl: state.baseUrl,
         operationState: state.operationState,
         auth: state.auth,
+        environments: state.environments,
+        activeEnvironmentId: state.activeEnvironmentId,
       }),
       // Custom merge logic for handling spec/base URL initialization
       merge: (persistedState, currentState) => {

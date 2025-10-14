@@ -3,13 +3,19 @@ import { useAppStore } from "@/store/useAppStore";
 import { getJsonBodySchema } from "@/lib/schema";
 import { send, buildCurlFromParts } from "@/lib/request";
 import { resolveOperationAuth } from "@/lib/auth";
-import { shallow } from "zustand/shallow";
+import { resolveVariables } from "@/lib/templating";
+
+// Create stable empty object references to prevent infinite loops
+const EMPTY_OPERATION_STATE = {};
+const EMPTY_OBJECT = {};
 
 // Define selector hooks for performance
 const useSelectedOp = () => useAppStore((s) => s.selected);
 const useOperationStateForKey = (key: string) =>
-  useAppStore((s) => s.operationState[key], shallow);
-const useAuthState = () => useAppStore((s) => s.auth, shallow);
+  useAppStore((s) => s.operationState[key] || EMPTY_OPERATION_STATE);
+const useAuthState = () => useAppStore((s) => s.auth);
+const useEnvironments = () => useAppStore((s) => s.environments);
+const useActiveEnvironmentId = () => useAppStore((s) => s.activeEnvironmentId);
 
 export function useRequestBuilderState() {
   const spec = useAppStore((s) => s.spec);
@@ -17,22 +23,31 @@ export function useRequestBuilderState() {
   const selected = useSelectedOp();
   const setOperationState = useAppStore((s) => s.setOperationState);
   const authState = useAuthState();
+  const environments = useEnvironments();
+  const activeEnvironmentId = useActiveEnvironmentId();
 
   const operationKey = useMemo(
     () => (selected ? `${selected.method}:${selected.path}` : ""),
     [selected]
   );
 
+  const operationState = useOperationStateForKey(operationKey);
   const {
-    pathData = {},
-    queryData = {},
-    headerData = {},
-    customHeaderData = {},
-    bodyData = {},
-  } = useOperationStateForKey(operationKey) || {};
+    pathData = EMPTY_OBJECT,
+    queryData = EMPTY_OBJECT,
+    headerData = EMPTY_OBJECT,
+    customHeaderData = EMPTY_OBJECT,
+    bodyData = EMPTY_OBJECT,
+  } = operationState;
 
   const [curl, setCurl] = useState("");
-  const [resp, setResp] = useState<any | null>(null);
+  const [resp, setResp] = useState<{
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    bodyText: string;
+    bodyJson: any;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -45,6 +60,37 @@ export function useRequestBuilderState() {
     [op, authState, spec]
   );
 
+  // Get active environment variables
+  const activeEnvironmentVariables = useMemo(() => {
+    if (!activeEnvironmentId || !environments[activeEnvironmentId]) {
+      return {};
+    }
+    return environments[activeEnvironmentId].variables;
+  }, [environments, activeEnvironmentId]);
+
+  // Resolve variables in all request data
+  const resolvedData = useMemo(() => {
+    return {
+      baseUrl: resolveVariables(baseUrl || "", activeEnvironmentVariables),
+      pathData: resolveVariables(pathData, activeEnvironmentVariables),
+      queryData: resolveVariables(queryData, activeEnvironmentVariables),
+      headerData: resolveVariables(headerData, activeEnvironmentVariables),
+      customHeaderData: resolveVariables(
+        customHeaderData,
+        activeEnvironmentVariables
+      ),
+      bodyData: resolveVariables(bodyData, activeEnvironmentVariables),
+    };
+  }, [
+    baseUrl,
+    pathData,
+    queryData,
+    headerData,
+    customHeaderData,
+    bodyData,
+    activeEnvironmentVariables,
+  ]);
+
   const bodySchema = useMemo(() => {
     if (!spec || !op) return { schema: null, mediaType: null };
     return getJsonBodySchema(spec, op);
@@ -52,7 +98,7 @@ export function useRequestBuilderState() {
 
   // useEffect for cURL generation
   useEffect(() => {
-    if (!path || !method || !baseUrl) {
+    if (!path || !method || !resolvedData.baseUrl) {
       setCurl("");
       return;
     }
@@ -63,42 +109,31 @@ export function useRequestBuilderState() {
       );
     // Auth headers should overwrite any others
     const mergedHeaders = {
-      ...norm(headerData as Record<string, string>),
-      ...norm(customHeaderData),
+      ...norm(resolvedData.headerData as Record<string, string>),
+      ...norm(resolvedData.customHeaderData),
       ...norm(appliedAuth.headers),
     };
     const mergedQueryParams = {
-      ...queryData,
+      ...resolvedData.queryData,
       ...appliedAuth.queryParams,
     };
 
     const c = buildCurlFromParts({
-      baseUrl,
+      baseUrl: resolvedData.baseUrl,
       path,
       method: method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
-      pathParams: pathData as Record<string, string | number>,
+      pathParams: resolvedData.pathData as Record<string, string | number>,
       queryParams: mergedQueryParams,
       headerParams: mergedHeaders,
-      body: bodySchema.schema ? bodyData : undefined,
+      body: bodySchema.schema ? resolvedData.bodyData : undefined,
       mediaType: bodySchema.mediaType,
     });
     setCurl(c);
-  }, [
-    baseUrl,
-    path,
-    method,
-    pathData,
-    queryData,
-    headerData,
-    customHeaderData,
-    bodyData,
-    bodySchema,
-    appliedAuth,
-  ]);
+  }, [resolvedData, path, method, bodySchema, appliedAuth]);
 
   // handleSend, handleCancel, and shortcut useEffect
   const handleSend = useCallback(async () => {
-    if (!baseUrl) return;
+    if (!resolvedData.baseUrl) return;
 
     // Cancel any existing request
     if (abortControllerRef.current) {
@@ -117,24 +152,24 @@ export function useRequestBuilderState() {
       );
     // Auth headers should overwrite any others
     const mergedHeaders = {
-      ...norm(headerData as Record<string, string>),
-      ...norm(customHeaderData),
+      ...norm(resolvedData.headerData as Record<string, string>),
+      ...norm(resolvedData.customHeaderData),
       ...norm(appliedAuth.headers),
     };
     const mergedQueryParams = {
-      ...queryData,
+      ...resolvedData.queryData,
       ...appliedAuth.queryParams,
     };
 
     try {
       const r = await send({
-        baseUrl,
+        baseUrl: resolvedData.baseUrl,
         path,
         method,
-        pathParams: pathData as Record<string, string | number>,
+        pathParams: resolvedData.pathData as Record<string, string | number>,
         queryParams: mergedQueryParams,
         headers: mergedHeaders,
-        body: bodySchema.schema ? bodyData : undefined,
+        body: bodySchema.schema ? resolvedData.bodyData : undefined,
         mediaType: bodySchema.mediaType ?? undefined,
         timeoutMs: 15000,
         signal: abortController.signal,
@@ -168,18 +203,7 @@ export function useRequestBuilderState() {
         abortControllerRef.current = null;
       }
     }
-  }, [
-    baseUrl,
-    path,
-    method,
-    pathData,
-    queryData,
-    headerData,
-    customHeaderData,
-    bodyData,
-    bodySchema,
-    appliedAuth,
-  ]);
+  }, [resolvedData, path, method, bodySchema, appliedAuth]);
 
   const handleCancel = useCallback(() => {
     if (abortControllerRef.current) {

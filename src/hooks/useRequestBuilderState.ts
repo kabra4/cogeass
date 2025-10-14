@@ -41,8 +41,8 @@ export function useRequestBuilderState() {
   const op = selected?.op;
 
   const appliedAuth = useMemo(
-    () => resolveOperationAuth(op, authState),
-    [op, authState]
+    () => resolveOperationAuth(op, authState, spec),
+    [op, authState, spec]
   );
 
   const bodySchema = useMemo(() => {

@@ -1,4 +1,5 @@
 import type { AuthState, OperationRef } from "@/store/types";
+import type { DerefSpec } from "./openapi";
 
 // Type for the resolved auth credentials to be applied.
 export type AppliedAuth = {
@@ -16,17 +17,18 @@ export type AppliedAuth = {
  */
 export function resolveOperationAuth(
   op: OperationRef["op"] | undefined,
-  authState: AuthState
+  authState: AuthState,
+  spec: DerefSpec | null
 ): AppliedAuth {
   const result: AppliedAuth = { headers: {}, queryParams: {} };
-  if (!op?.security || op.security.length === 0) {
-    // No security defined for this operation
+
+  // An operation's security requirement overrides the global one.
+  const securityRequirement = op?.security?.[0] ?? spec?.security?.[0];
+
+  if (!securityRequirement) {
     return result;
   }
 
-  // This implementation uses the FIRST security requirement listed.
-  // A more advanced version could support logical ORs between requirements.
-  const securityRequirement = op.security[0];
   const { schemes, values } = authState;
 
   for (const schemeName in securityRequirement) {

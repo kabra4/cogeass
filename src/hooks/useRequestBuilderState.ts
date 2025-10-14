@@ -46,7 +46,7 @@ export function useRequestBuilderState() {
     statusText: string;
     headers: Record<string, string>;
     bodyText: string;
-    bodyJson: any;
+    bodyJson: unknown;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);

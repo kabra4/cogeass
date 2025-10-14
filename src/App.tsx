@@ -23,6 +23,7 @@ import WorkspacePage from "@/pages/WorkspacePage";
 import EnvironmentsPage from "@/pages/EnvironmentsPage";
 import HeadersPage from "@/pages/HeadersPage";
 import AuthPage from "@/pages/AuthPage";
+import { EnvironmentSelector } from "@/components/EnvironmentSelector";
 
 type ActivePage = "workspace" | "auth" | "envs" | "headers";
 
@@ -133,13 +134,19 @@ export default function App() {
                       {(() => {
                         try {
                           // Best effort to read spec title
-                          const specObj = spec as Record<string, any>;
-                          return specObj?.info?.title || "";
+                          const specObj = spec as Record<string, unknown>;
+                          const info = specObj?.info as
+                            | Record<string, unknown>
+                            | undefined;
+                          return (info?.title as string) || "";
                         } catch {
                           return "";
                         }
                       })()}
                     </div>
+                    <EnvironmentSelector
+                      onManageEnvironments={() => setActivePage("envs")}
+                    />
                   </div>
                   <div className="flex flex-1 justify-center px-8">
                     <div className="relative w-full max-w-xl">

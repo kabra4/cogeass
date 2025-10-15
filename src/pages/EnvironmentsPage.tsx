@@ -5,13 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,6 +27,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Edit3, Settings } from "lucide-react";
 import VariableEditor from "@/components/VariableEditor";
+import { cn } from "@/lib/utils";
+import { getEnvironmentColor } from "@/lib/environment-colors";
 
 export default function EnvironmentsPage() {
   const {
@@ -57,9 +52,6 @@ export default function EnvironmentsPage() {
   const [editingEnvironmentName, setEditingEnvironmentName] = useState("");
 
   const environmentsList = Object.values(environments);
-  const activeEnvironment = activeEnvironmentId
-    ? environments[activeEnvironmentId]
-    : null;
 
   const handleCreateEnvironment = () => {
     if (newEnvironmentName.trim()) {
@@ -170,139 +162,97 @@ export default function EnvironmentsPage() {
         </Dialog>
       </div>
 
-      {/* Active environment selector */}
-      {environmentsList.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Active Environment</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <Select
-                  value={activeEnvironmentId || "none"}
-                  onValueChange={(value) =>
-                    setActiveEnvironment(value === "none" ? null : value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an environment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Environment</SelectItem>
-                    {environmentsList.map((env) => (
-                      <SelectItem key={env.id} value={env.id}>
-                        {env.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {activeEnvironment && (
-                <Badge variant="secondary">
-                  {environmentKeys.length} variables
-                </Badge>
-              )}
-            </div>
-            {!activeEnvironmentId && (
-              <p className="text-sm text-muted-foreground mt-2">
-                No environment selected. Variables will not be resolved in
-                requests.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Environment management */}
       {environmentsList.length > 0 ? (
         <div className="grid gap-4">
-          {environmentsList.map((env) => (
-            <Card
-              key={env.id}
-              className={`${
-                env.id === activeEnvironmentId ? "ring-2 ring-primary" : ""
-              }`}
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-lg">{env.name}</CardTitle>
-                    {env.id === activeEnvironmentId && <Badge>Active</Badge>}
-                    <Badge variant="outline">
-                      {environmentKeys.length} variables
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => startRenaming(env.id, env.name)}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Delete Environment
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete the "{env.name}"
-                            environment? This action cannot be undone and all
-                            variables will be lost.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteEnvironment(env.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          {environmentsList.map((env, index) => {
+            const colors = getEnvironmentColor(index);
+            return (
+              <Card
+                key={env.id}
+                className={`${
+                  env.id === activeEnvironmentId ? "ring-2 ring-primary" : ""
+                }`}
+              >
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CardTitle className={cn("text-lg", colors.text)}>
+                        {env.name}
+                      </CardTitle>
+                      {env.id === activeEnvironmentId && <Badge>Active</Badge>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startRenaming(env.id, env.name)}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
                           >
-                            Delete Environment
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Delete Environment
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete the "{env.name}"
+                              environment? This action cannot be undone and all
+                              variables will be lost.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteEnvironment(env.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete Environment
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {/*
+                </CardHeader>
+                <CardContent>
+                  {/*
                   Render all global keys for this environment, supplying
                   empty string when not set (should already be normalized
                   by merge, but this keeps UI robust).
                 */}
-                {(() => {
-                  const displayVars: Record<string, string> = {};
-                  environmentKeys.forEach((k) => {
-                    displayVars[k] = env.variables[k] ?? "";
-                  });
-                  return (
-                    <VariableEditor
-                      variables={displayVars}
-                      onChange={(variables) =>
-                        handleVariablesChange(env.id, variables)
-                      }
-                      placeholder={{
-                        key: "API_URL",
-                        value: "https://api.example.com",
-                      }}
-                    />
-                  );
-                })()}
-              </CardContent>
-            </Card>
-          ))}
+                  {(() => {
+                    const displayVars: Record<string, string> = {};
+                    environmentKeys.forEach((k) => {
+                      displayVars[k] = env.variables[k] ?? "";
+                    });
+                    return (
+                      <VariableEditor
+                        variables={displayVars}
+                        onChange={(variables) =>
+                          handleVariablesChange(env.id, variables)
+                        }
+                        placeholder={{
+                          key: "API_URL",
+                          value: "https://api.example.com",
+                        }}
+                      />
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <Card>

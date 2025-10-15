@@ -10,16 +10,18 @@ export const createEnvironmentSlice: StateCreator<
   [],
   [],
   EnvironmentSlice
-> = (set) => ({
+> = (set, get) => ({
   environments: {},
+  environmentKeys: [],
   activeEnvironmentId: null,
 
   addEnvironment: (name: string) => {
     const id = generateId();
+    const keys = get().environmentKeys || [];
     const newEnvironment: Environment = {
       id,
       name,
-      variables: {},
+      variables: Object.fromEntries(keys.map((k) => [k, ""])),
     };
 
     set((state) => ({
@@ -49,43 +51,93 @@ export const createEnvironmentSlice: StateCreator<
     set({ activeEnvironmentId: id });
   },
 
-  setVariable: (environmentId: string, key: string, value: string) => {
+  addVariableKey: (rawKey: string) => {
+    const key = rawKey.trim();
+    if (!key) return;
     set((state) => {
-      const environment = state.environments[environmentId];
-      if (!environment) return state;
-
+      if (state.environmentKeys.includes(key)) return state;
+      const updatedEnvs: Record<string, Environment> = {};
+      for (const [id, env] of Object.entries(state.environments)) {
+        updatedEnvs[id] = {
+          ...env,
+          variables: { ...env.variables, [key]: "" },
+        };
+      }
       return {
-        environments: {
-          ...state.environments,
-          [environmentId]: {
-            ...environment,
-            variables: {
-              ...environment.variables,
-              [key]: value,
-            },
-          },
-        },
+        environmentKeys: [...state.environmentKeys, key],
+        environments: updatedEnvs,
       };
     });
   },
 
-  removeVariable: (environmentId: string, key: string) => {
+  removeVariableKey: (key: string) => {
     set((state) => {
-      const environment = state.environments[environmentId];
-      if (!environment) return state;
-
-      const newVariables = { ...environment.variables };
-      delete newVariables[key];
-
+      if (!state.environmentKeys.includes(key)) return state;
+      const updatedEnvs: Record<string, Environment> = {};
+      for (const [id, env] of Object.entries(state.environments)) {
+        const vars = { ...env.variables };
+        delete vars[key];
+        updatedEnvs[id] = { ...env, variables: vars };
+      }
       return {
-        environments: {
-          ...state.environments,
-          [environmentId]: {
-            ...environment,
-            variables: newVariables,
-          },
-        },
+        environmentKeys: state.environmentKeys.filter((k) => k !== key),
+        environments: updatedEnvs,
       };
+    });
+  },
+
+  renameVariableKey: (oldKey: string, rawNewKey: string) => {
+    const newKey = rawNewKey.trim();
+    if (!newKey || newKey === oldKey) return;
+    set((state) => {
+      if (!state.environmentKeys.includes(oldKey)) return state;
+      if (state.environmentKeys.includes(newKey)) return state; // avoid dup
+      const newKeys = state.environmentKeys.map((k) =>
+        k === oldKey ? newKey : k
+      );
+      const updatedEnvs: Record<string, Environment> = {};
+      for (const [id, env] of Object.entries(state.environments)) {
+        const vars = { ...env.variables };
+        if (oldKey in vars) {
+          vars[newKey] = vars[oldKey];
+          delete vars[oldKey];
+        }
+        updatedEnvs[id] = { ...env, variables: vars };
+      }
+      return { environmentKeys: newKeys, environments: updatedEnvs };
+    });
+  },
+
+  setVariableValue: (environmentId: string, key: string, value: string) => {
+    set((state) => {
+      const env = state.environments[environmentId];
+      if (!env) return state;
+      const isNewKey = !state.environmentKeys.includes(key);
+      const nextEnvs: Record<string, Environment> = {
+        ...state.environments,
+      };
+      // If new key, add it across all envs (empty for others)
+      if (isNewKey) {
+        for (const [id, e] of Object.entries(state.environments)) {
+          nextEnvs[id] = {
+            ...e,
+            variables: {
+              ...e.variables,
+              [key]: id === environmentId ? value : "",
+            },
+          };
+        }
+        return {
+          environments: nextEnvs,
+          environmentKeys: [...state.environmentKeys, key],
+        };
+      }
+      // Otherwise, just update this env
+      nextEnvs[environmentId] = {
+        ...env,
+        variables: { ...env.variables, [key]: value },
+      };
+      return { environments: nextEnvs };
     });
   },
 

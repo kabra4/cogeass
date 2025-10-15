@@ -27,15 +27,39 @@ export const useAppStore = create<AppState>()(
         operationState: state.operationState,
         auth: state.auth,
         environments: state.environments,
+        environmentKeys: state.environmentKeys,
         activeEnvironmentId: state.activeEnvironmentId,
       }),
-      // Custom merge logic for handling spec/base URL initialization
       merge: (persistedState, currentState) => {
         const state = persistedState as Partial<AppState>;
-        // If baseUrl is empty after hydration, try to derive it from spec
-        // (This logic needs to be triggered after the spec is auto-loaded in App.tsx)
-        // For now, a direct merge is fine.
-        return { ...currentState, ...state };
+        const envs = state.environments || {};
+
+        // If environmentKeys are missing (old persisted data), compute union.
+        let keys = state.environmentKeys;
+        if (!keys) {
+          const set = new Set<string>();
+          Object.values(envs).forEach((env) => {
+            Object.keys(env.variables || {}).forEach((k) => set.add(k));
+          });
+          keys = Array.from(set);
+        }
+
+        // Normalize all environments to have exactly keys[].
+        const normalizedEnvs: typeof envs = {};
+        for (const [id, env] of Object.entries(envs)) {
+          const normalizedVars: Record<string, string> = {};
+          for (const k of keys) {
+            normalizedVars[k] = env.variables?.[k] ?? "";
+          }
+          normalizedEnvs[id] = { ...env, variables: normalizedVars };
+        }
+
+        return {
+          ...currentState,
+          ...state,
+          environmentKeys: keys,
+          environments: normalizedEnvs,
+        };
       },
     }
   )

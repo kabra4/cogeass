@@ -38,12 +38,14 @@ import VariableEditor from "@/components/VariableEditor";
 export default function EnvironmentsPage() {
   const {
     environments,
+    environmentKeys,
     activeEnvironmentId,
     addEnvironment,
     removeEnvironment,
     setActiveEnvironment,
-    setVariable,
-    removeVariable,
+    setVariableValue,
+    addVariableKey,
+    removeVariableKey,
     updateEnvironmentName,
   } = useAppStore();
 
@@ -76,23 +78,21 @@ export default function EnvironmentsPage() {
     environmentId: string,
     variables: Record<string, string>
   ) => {
-    const currentEnv = environments[environmentId];
-    if (!currentEnv) return;
-
-    // Find variables to remove (keys that were in the old variables but not in the new ones)
-    const oldKeys = Object.keys(currentEnv.variables);
     const newKeys = Object.keys(variables);
+    const currentKeys = environmentKeys;
 
-    // Remove variables that are no longer present
-    oldKeys.forEach((key) => {
-      if (!newKeys.includes(key)) {
-        removeVariable(environmentId, key);
-      }
-    });
+    // Keys created in editor (not in global keys yet)
+    const added = newKeys.filter((k) => !currentKeys.includes(k));
+    // Keys removed in editor (present globally but removed here)
+    const removed = currentKeys.filter((k) => !newKeys.includes(k));
 
-    // Set all new/updated variables
-    Object.entries(variables).forEach(([key, value]) => {
-      setVariable(environmentId, key, value);
+    // Apply key-level changes globally
+    added.forEach((k) => addVariableKey(k));
+    removed.forEach((k) => removeVariableKey(k));
+
+    // Update values for this environment
+    Object.entries(variables).forEach(([k, v]) => {
+      setVariableValue(environmentId, k, v);
     });
   };
 
@@ -200,7 +200,7 @@ export default function EnvironmentsPage() {
               </div>
               {activeEnvironment && (
                 <Badge variant="secondary">
-                  {Object.keys(activeEnvironment.variables).length} variables
+                  {environmentKeys.length} variables
                 </Badge>
               )}
             </div>
@@ -230,7 +230,7 @@ export default function EnvironmentsPage() {
                     <CardTitle className="text-lg">{env.name}</CardTitle>
                     {env.id === activeEnvironmentId && <Badge>Active</Badge>}
                     <Badge variant="outline">
-                      {Object.keys(env.variables).length} variables
+                      {environmentKeys.length} variables
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2">
@@ -277,16 +277,29 @@ export default function EnvironmentsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <VariableEditor
-                  variables={env.variables}
-                  onChange={(variables) =>
-                    handleVariablesChange(env.id, variables)
-                  }
-                  placeholder={{
-                    key: "API_URL",
-                    value: "https://api.example.com",
-                  }}
-                />
+                {/*
+                  Render all global keys for this environment, supplying
+                  empty string when not set (should already be normalized
+                  by merge, but this keeps UI robust).
+                */}
+                {(() => {
+                  const displayVars: Record<string, string> = {};
+                  environmentKeys.forEach((k) => {
+                    displayVars[k] = env.variables[k] ?? "";
+                  });
+                  return (
+                    <VariableEditor
+                      variables={displayVars}
+                      onChange={(variables) =>
+                        handleVariablesChange(env.id, variables)
+                      }
+                      placeholder={{
+                        key: "API_URL",
+                        value: "https://api.example.com",
+                      }}
+                    />
+                  );
+                })()}
               </CardContent>
             </Card>
           ))}

@@ -61,12 +61,17 @@ export type Environment = {
 
 export interface EnvironmentSlice {
   environments: Record<string, Environment>;
+  environmentKeys: string[];
   activeEnvironmentId: string | null;
   addEnvironment: (name: string) => string;
   removeEnvironment: (id: string) => void;
   setActiveEnvironment: (id: string | null) => void;
-  setVariable: (environmentId: string, key: string, value: string) => void;
-  removeVariable: (environmentId: string, key: string) => void;
+  // Variable key management (global across all environments)
+  addVariableKey: (key: string) => void;
+  removeVariableKey: (key: string) => void;
+  renameVariableKey: (oldKey: string, newKey: string) => void;
+  // Per-environment value editing
+  setVariableValue: (environmentId: string, key: string, value: string) => void;
   updateEnvironmentName: (id: string, name: string) => void;
 }
 

@@ -89,6 +89,7 @@ export function EnvironmentSelector({
 }: EnvironmentSelectorProps) {
   const {
     environments,
+    environmentKeys,
     activeEnvironmentId,
     setActiveEnvironment,
     addEnvironment,
@@ -164,9 +165,9 @@ export function EnvironmentSelector({
                 />
                 <span className="truncate">{env.name}</span>
               </div>
-              {Object.keys(env.variables).length > 0 && (
+              {environmentKeys.length > 0 && (
                 <span className="text-xs text-muted-foreground ml-2">
-                  {Object.keys(env.variables).length} vars
+                  {environmentKeys.length} vars
                 </span>
               )}
             </DropdownMenuItem>

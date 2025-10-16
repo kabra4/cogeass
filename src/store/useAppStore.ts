@@ -5,11 +5,19 @@ import { createRequestSlice } from "./requestSlice";
 import { createUiSlice } from "./uiSlice";
 import { createAuthSlice } from "./authSlice";
 import { createEnvironmentSlice } from "./environmentSlice";
-import type { AppState } from "./types";
+import { createWorkspaceSlice } from "./workspaceSlice";
+import type {
+  AppState,
+  Workspace,
+  OperationState,
+  AuthState,
+  Environment,
+} from "./types";
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get, api) => ({
+      ...createWorkspaceSlice(set, get, api),
       ...createSpecSlice(set, get, api),
       ...createRequestSlice(set, get, api),
       ...createUiSlice(set, get, api),
@@ -18,48 +26,113 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "cogeass-storage",
-      // Persist only lightweight, user-generated data.
-      // The full 'spec' and 'operations' are derived, not persisted.
+      // Persist only workspace container; runtime (spec, ops) are derived, not persisted.
       partialize: (state) => ({
-        specId: state.specId,
-        selected: state.selected,
-        baseUrl: state.baseUrl,
-        operationState: state.operationState,
-        auth: state.auth,
-        environments: state.environments,
-        environmentKeys: state.environmentKeys,
-        activeEnvironmentId: state.activeEnvironmentId,
+        workspaces: state.workspaces,
+        workspaceOrder: state.workspaceOrder,
+        activeWorkspaceId: state.activeWorkspaceId,
       }),
       merge: (persistedState, currentState) => {
-        const state = persistedState as Partial<AppState>;
-        const envs = state.environments || {};
+        // Migration: convert legacy single-workspace persisted data into first workspace
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const persisted = persistedState as any;
+        const next = { ...currentState } as AppState;
 
-        // If environmentKeys are missing (old persisted data), compute union.
-        let keys = state.environmentKeys;
-        if (!keys) {
-          const set = new Set<string>();
-          Object.values(envs).forEach((env) => {
-            Object.keys(env.variables || {}).forEach((k) => set.add(k));
-          });
-          keys = Array.from(set);
+        if (
+          persisted?.workspaces &&
+          Object.keys(persisted.workspaces).length > 0
+        ) {
+          // New format already
+          next.workspaces = persisted.workspaces as Record<string, Workspace>;
+          next.workspaceOrder =
+            (persisted.workspaceOrder as string[]) ||
+            Object.keys(persisted.workspaces);
+          next.activeWorkspaceId =
+            (persisted.activeWorkspaceId as string) ||
+            next.workspaceOrder[0] ||
+            null;
+          return next;
         }
 
-        // Normalize all environments to have exactly keys[].
-        const normalizedEnvs: typeof envs = {};
-        for (const [id, env] of Object.entries(envs)) {
-          const normalizedVars: Record<string, string> = {};
-          for (const k of keys) {
-            normalizedVars[k] = env.variables?.[k] ?? "";
-          }
-          normalizedEnvs[id] = { ...env, variables: normalizedVars };
-        }
-
-        return {
-          ...currentState,
-          ...state,
-          environmentKeys: keys,
-          environments: normalizedEnvs,
+        // Legacy fields - use any for simplicity in migration
+        const legacySpecId = (persisted?.specId as string) ?? null;
+        const legacyBaseUrl = (persisted?.baseUrl as string) ?? "";
+        const legacyOperationState =
+          (persisted?.operationState as Record<string, OperationState>) ?? {};
+        const legacySelected = persisted?.selected ?? null;
+        const legacyAuth = (persisted?.auth as AuthState) ?? {
+          schemes: {},
+          values: {},
         };
+        const legacyEnvs =
+          (persisted?.environments as Record<string, Environment>) ?? {};
+        let legacyKeys = (persisted?.environmentKeys as string[]) ?? [];
+
+        // Normalize keys if missing
+        if (!Array.isArray(legacyKeys) || legacyKeys.length === 0) {
+          const setKeys = new Set<string>();
+          Object.values(legacyEnvs).forEach((env) => {
+            if (
+              env &&
+              typeof env === "object" &&
+              "variables" in env &&
+              env.variables
+            ) {
+              Object.keys(env.variables).forEach((k) => setKeys.add(k));
+            }
+          });
+          legacyKeys = Array.from(setKeys);
+        }
+
+        const normalizedEnvs: Record<string, Environment> = {};
+        for (const [id, env] of Object.entries(legacyEnvs)) {
+          if (env && typeof env === "object") {
+            const vars: Record<string, string> = {};
+            legacyKeys.forEach((k) => {
+              const variables =
+                "variables" in env
+                  ? (env.variables as Record<string, string>)
+                  : {};
+              vars[k] = variables?.[k] ?? "";
+            });
+            normalizedEnvs[id] = {
+              id: (env.id as string) || id,
+              name: (env.name as string) || `Environment ${id}`,
+              variables: vars,
+            };
+          }
+        }
+
+        const legacySelectedKey =
+          legacySelected &&
+          typeof legacySelected === "object" &&
+          "method" in legacySelected &&
+          "path" in legacySelected
+            ? `${legacySelected.method}:${legacySelected.path}`.toLowerCase()
+            : null;
+
+        // Create a default workspace with legacy data
+        const wsId = `ws_${Date.now().toString(36)}`;
+        next.workspaces = {
+          [wsId]: {
+            id: wsId,
+            name: "Workspace 1",
+            specId: legacySpecId,
+            data: {
+              baseUrl: legacyBaseUrl,
+              operationState: legacyOperationState,
+              selectedKey: legacySelectedKey,
+              auth: legacyAuth,
+              environments: normalizedEnvs,
+              environmentKeys: legacyKeys,
+              activeEnvironmentId:
+                (persisted?.activeEnvironmentId as string) ?? null,
+            },
+          },
+        };
+        next.workspaceOrder = [wsId];
+        next.activeWorkspaceId = wsId;
+        return next;
       },
     }
   )

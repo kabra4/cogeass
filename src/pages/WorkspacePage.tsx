@@ -8,16 +8,21 @@ import {
 } from "@/components/ui/resizable";
 import { useHasHydrated } from "@/hooks/useHasHydrated";
 import { GripHorizontal } from "lucide-react";
+import { useAppStore } from "@/store/useAppStore";
 
 export default function WorkspacePage() {
   const [layout, setLayout] = useState<[number, number] | null>(null);
   const hasHydrated = useHasHydrated();
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
 
   // Persist layout of left/right panels
   useEffect(() => {
     if (!hasHydrated) return;
+    const key = activeWorkspaceId
+      ? `cogeass.layout.${activeWorkspaceId}`
+      : `cogeass.layout`;
     try {
-      const raw = localStorage.getItem("cogeass.layout");
+      const raw = localStorage.getItem(key);
       if (raw) {
         const arr = JSON.parse(raw);
         if (Array.isArray(arr) && arr.length === 2) {
@@ -27,7 +32,7 @@ export default function WorkspacePage() {
     } catch {
       // Ignore localStorage errors
     }
-  }, [hasHydrated]);
+  }, [hasHydrated, activeWorkspaceId]);
 
   return (
     <ResizablePanelGroup
@@ -35,7 +40,10 @@ export default function WorkspacePage() {
       className="h-full w-full"
       onLayout={(sizes) => {
         try {
-          localStorage.setItem("cogeass.layout", JSON.stringify(sizes));
+          const key = activeWorkspaceId
+            ? `cogeass.layout.${activeWorkspaceId}`
+            : `cogeass.layout`;
+          localStorage.setItem(key, JSON.stringify(sizes));
         } catch {
           // Ignore localStorage errors
         }

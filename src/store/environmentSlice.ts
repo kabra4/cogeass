@@ -24,12 +24,25 @@ export const createEnvironmentSlice: StateCreator<
       variables: Object.fromEntries(keys.map((k) => [k, ""])),
     };
 
-    set((state) => ({
-      environments: {
+    set((state) => {
+      const nextEnvs = {
         ...state.environments,
         [id]: newEnvironment,
-      },
-    }));
+      };
+      let updatedWorkspaces = state.workspaces;
+      const wsId = state.activeWorkspaceId;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: {
+            ...ws,
+            data: { ...ws.data, environments: nextEnvs },
+          },
+        };
+      }
+      return { environments: nextEnvs, workspaces: updatedWorkspaces };
+    });
 
     return id;
   },
@@ -39,16 +52,50 @@ export const createEnvironmentSlice: StateCreator<
       const newEnvironments = { ...state.environments };
       delete newEnvironments[id];
 
+      const newActive =
+        state.activeEnvironmentId === id ? null : state.activeEnvironmentId;
+
+      let updatedWorkspaces = state.workspaces;
+      const wsId = state.activeWorkspaceId;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: {
+            ...ws,
+            data: {
+              ...ws.data,
+              environments: newEnvironments,
+              activeEnvironmentId: newActive,
+            },
+          },
+        };
+      }
+
       return {
         environments: newEnvironments,
-        activeEnvironmentId:
-          state.activeEnvironmentId === id ? null : state.activeEnvironmentId,
+        activeEnvironmentId: newActive,
+        workspaces: updatedWorkspaces,
       };
     });
   },
 
   setActiveEnvironment: (id: string | null) => {
-    set({ activeEnvironmentId: id });
+    set((state) => {
+      let updatedWorkspaces = state.workspaces;
+      const wsId = state.activeWorkspaceId;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: {
+            ...ws,
+            data: { ...ws.data, activeEnvironmentId: id },
+          },
+        };
+      }
+      return { activeEnvironmentId: id, workspaces: updatedWorkspaces };
+    });
   },
 
   addVariableKey: (rawKey: string) => {
@@ -63,9 +110,29 @@ export const createEnvironmentSlice: StateCreator<
           variables: { ...env.variables, [key]: "" },
         };
       }
+      const nextKeys = [...state.environmentKeys, key];
+
+      let updatedWorkspaces = state.workspaces;
+      const wsId = state.activeWorkspaceId;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: {
+            ...ws,
+            data: {
+              ...ws.data,
+              environmentKeys: nextKeys,
+              environments: updatedEnvs,
+            },
+          },
+        };
+      }
+
       return {
         environmentKeys: [...state.environmentKeys, key],
         environments: updatedEnvs,
+        workspaces: updatedWorkspaces,
       };
     });
   },
@@ -79,9 +146,28 @@ export const createEnvironmentSlice: StateCreator<
         delete vars[key];
         updatedEnvs[id] = { ...env, variables: vars };
       }
+      const nextKeys = state.environmentKeys.filter((k) => k !== key);
+
+      let updatedWorkspaces = state.workspaces;
+      const wsId = state.activeWorkspaceId;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: {
+            ...ws,
+            data: {
+              ...ws.data,
+              environmentKeys: nextKeys,
+              environments: updatedEnvs,
+            },
+          },
+        };
+      }
       return {
-        environmentKeys: state.environmentKeys.filter((k) => k !== key),
+        environmentKeys: nextKeys,
         environments: updatedEnvs,
+        workspaces: updatedWorkspaces,
       };
     });
   },
@@ -104,7 +190,27 @@ export const createEnvironmentSlice: StateCreator<
         }
         updatedEnvs[id] = { ...env, variables: vars };
       }
-      return { environmentKeys: newKeys, environments: updatedEnvs };
+      let updatedWorkspaces = state.workspaces;
+      const wsId = state.activeWorkspaceId;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: {
+            ...ws,
+            data: {
+              ...ws.data,
+              environmentKeys: newKeys,
+              environments: updatedEnvs,
+            },
+          },
+        };
+      }
+      return {
+        environmentKeys: newKeys,
+        environments: updatedEnvs,
+        workspaces: updatedWorkspaces,
+      };
     });
   },
 
@@ -127,9 +233,27 @@ export const createEnvironmentSlice: StateCreator<
             },
           };
         }
+        const nextKeys = [...state.environmentKeys, key];
+        let updatedWorkspaces = state.workspaces;
+        const wsId = state.activeWorkspaceId;
+        if (wsId && state.workspaces[wsId]) {
+          const ws = state.workspaces[wsId];
+          updatedWorkspaces = {
+            ...state.workspaces,
+            [wsId]: {
+              ...ws,
+              data: {
+                ...ws.data,
+                environments: nextEnvs,
+                environmentKeys: nextKeys,
+              },
+            },
+          };
+        }
         return {
           environments: nextEnvs,
-          environmentKeys: [...state.environmentKeys, key],
+          environmentKeys: nextKeys,
+          workspaces: updatedWorkspaces,
         };
       }
       // Otherwise, just update this env
@@ -137,7 +261,16 @@ export const createEnvironmentSlice: StateCreator<
         ...env,
         variables: { ...env.variables, [key]: value },
       };
-      return { environments: nextEnvs };
+      let updatedWorkspaces = state.workspaces;
+      const wsId = state.activeWorkspaceId;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: { ...ws, data: { ...ws.data, environments: nextEnvs } },
+        };
+      }
+      return { environments: nextEnvs, workspaces: updatedWorkspaces };
     });
   },
 
@@ -146,15 +279,20 @@ export const createEnvironmentSlice: StateCreator<
       const environment = state.environments[id];
       if (!environment) return state;
 
-      return {
-        environments: {
-          ...state.environments,
-          [id]: {
-            ...environment,
-            name,
-          },
-        },
+      const nextEnvs = {
+        ...state.environments,
+        [id]: { ...environment, name },
       };
+      let updatedWorkspaces = state.workspaces;
+      const wsId = state.activeWorkspaceId;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: { ...ws, data: { ...ws.data, environments: nextEnvs } },
+        };
+      }
+      return { environments: nextEnvs, workspaces: updatedWorkspaces };
     });
   },
 });

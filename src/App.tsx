@@ -24,55 +24,102 @@ import EnvironmentsPage from "@/pages/EnvironmentsPage";
 import HeadersPage from "@/pages/HeadersPage";
 import AuthPage from "@/pages/AuthPage";
 import { EnvironmentSelector } from "@/components/EnvironmentSelector";
+import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 
 type ActivePage = "workspace" | "auth" | "envs" | "headers";
 
 export default function App() {
   const hasHydrated = useHasHydrated();
-  const { spec, setSpec, setOperations, baseUrl, setBaseUrl } = useAppStore(
-    (s) => s
-  );
+  const {
+    spec,
+    specId,
+    setSpec,
+    setOperations,
+    baseUrl,
+    setBaseUrl,
+    workspaces,
+    activeWorkspaceId,
+    createWorkspace,
+    __applyWorkspaceToRoot,
+  } = useAppStore((s) => s);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [activePage, setActivePage] = useState<ActivePage>("workspace");
+  const activeWorkspace =
+    activeWorkspaceId && workspaces[activeWorkspaceId]
+      ? workspaces[activeWorkspaceId]
+      : null;
 
   useEffect(() => {
-    const autoLoadPreviousSpec = async () => {
-      if (hasHydrated && !spec) {
-        setIsAutoLoading(true);
-        try {
-          // Get the ID of the last spec, then fetch it
-          const lastUsedId = await specRepository.getLastUsedId();
-          if (lastUsedId) {
-            const specData = await specRepository.getById(lastUsedId);
-            if (!specData) return;
-            setSpec(specData, lastUsedId);
-            setOperations(listOperations(specData));
-          } else {
-            console.warn("specId found, but no matching spec in IndexedDB.");
+    if (!hasHydrated) return;
+    const ensureWorkspace = () => {
+      // Ensure at least one workspace exists
+      if (!activeWorkspaceId || !workspaces[activeWorkspaceId]) {
+        // This will also apply the workspace to root
+        createWorkspace("Workspace 1");
+      } else {
+        __applyWorkspaceToRoot(activeWorkspaceId);
+      }
+    };
+    ensureWorkspace();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasHydrated]);
+
+  // Load the spec whenever the active workspace changes (or its specId changes)
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!activeWorkspaceId) return;
+
+    const ws = workspaces[activeWorkspaceId];
+    if (!ws) return;
+
+    // Only load if we don't already have the correct spec loaded
+    if (ws.specId && spec && specId === ws.specId) {
+      return; // Already have the correct spec
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      setIsAutoLoading(true);
+      try {
+        if (ws.specId) {
+          const specData = await specRepository.getById(ws.specId);
+          if (!cancelled) {
+            if (specData) {
+              setSpec(specData, ws.specId);
+              setOperations(listOperations(specData));
+            } else {
+              console.warn(
+                "Spec ID present but not found in IndexedDB:",
+                ws.specId
+              );
+              setOperations([]);
+            }
           }
-        } catch (error) {
-          console.error("Error reading from IndexedDB:", error);
-          toast.error("Failed to read from the local database.");
-        } finally {
+        } else {
+          // Workspace has no spec yet; keep runtime spec null and operations empty
+          if (!cancelled) {
+            setOperations([]);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error("Failed loading spec for workspace:", e);
+          toast.error("Failed to load workspace schema.");
+          setOperations([]);
+        }
+      } finally {
+        if (!cancelled) {
           setIsAutoLoading(false);
         }
       }
     };
-    autoLoadPreviousSpec();
-  }, [hasHydrated, spec, setSpec, setOperations]);
 
-  // Persist base URL from localStorage on startup
-  useEffect(() => {
-    if (!hasHydrated) return;
-    const saved = localStorage.getItem("cogeass.baseUrl");
-    if (saved) setBaseUrl(saved);
-  }, [hasHydrated, setBaseUrl]); // specId removed from dependencies
+    load();
 
-  // Save base URL to localStorage when it changes
-  useEffect(
-    () => localStorage.setItem("cogeass.baseUrl", baseUrl || ""),
-    [baseUrl]
-  );
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated, activeWorkspaceId, activeWorkspace?.specId, specId]);
 
   const loadPetstore = async () => {
     const url = "https://petstore3.swagger.io/api/v3/openapi.json";
@@ -130,6 +177,7 @@ export default function App() {
                     <div className="text-lg font-bold tracking-tight">
                       CoGeass
                     </div>
+                    <WorkspaceSelector />
                     <div className="text-sm text-muted-foreground truncate max-w-[250px]">
                       {(() => {
                         try {
@@ -168,7 +216,9 @@ export default function App() {
               {renderActivePage()}
             </main>
           </div>
-        ) : (
+        ) : // Only show Welcome if the active workspace really has no specId
+        // Otherwise, it's in the process of loading (spinner is shown), so don't prompt
+        !activeWorkspace?.specId ? (
           <Dialog open={true}>
             <DialogContent className="p-4">
               <DialogHeader>
@@ -187,7 +237,7 @@ export default function App() {
               </div>
             </DialogContent>
           </Dialog>
-        )}
+        ) : null}
         <Toaster />
       </>
     </ThemeProvider>

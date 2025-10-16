@@ -17,7 +17,7 @@ import HeaderEditor from "./HeaderEditor";
 
 const ThemedForm = withTheme(shadcnTheme);
 
-type ActiveTab = "path" | "query" | "header" | "customHeader" | "body";
+type ActiveTab = "path" | "query" | "headers" | "body";
 
 interface RequestFormsProps {
   method: string;
@@ -112,7 +112,6 @@ export default function RequestForms({
   const hasQuery = paramsSchemas?.query && hasProps(paramsSchemas.query);
   const hasHeader = paramsSchemas?.header && hasProps(paramsSchemas.header);
   const hasBody = !!bodySchema.schema;
-  const hasCustomHeader = true; // Always available
 
   // Set the default active tab when the operation changes
   useEffect(() => {
@@ -120,12 +119,11 @@ export default function RequestForms({
     const firstAvailable =
       (hasPath && "path") ||
       (hasQuery && "query") ||
-      (hasHeader && "header") ||
-      (hasCustomHeader && "customHeader") ||
+      "headers" || // Headers tab is always available
       (hasBody && "body") ||
       "path";
     setActiveTab(firstAvailable);
-  }, [op, hasPath, hasQuery, hasHeader, hasBody, hasCustomHeader]);
+  }, [op, hasPath, hasQuery, hasHeader, hasBody]);
 
   if (!op) return null;
   const handleClear = () => {
@@ -136,8 +134,9 @@ export default function RequestForms({
       case "query":
         onQueryDataChange({});
         break;
-      case "header":
+      case "headers":
         onHeaderDataChange({});
+        onCustomHeaderDataChange({});
         break;
       case "body":
         onBodyDataChange({});
@@ -156,7 +155,7 @@ export default function RequestForms({
       OPTIONS: "bg-purple-500 text-white",
     }[method] || "bg-gray-500 text-white";
 
-  const canClear = ["path", "query", "header", "body"].includes(activeTab);
+  const canClear = ["path", "query", "headers", "body"].includes(activeTab);
 
   return (
     <div className="flex flex-col gap-3 h-full overflow-hidden">
@@ -240,24 +239,13 @@ export default function RequestForms({
             Query
           </Button>
         )}
-        {hasHeader && (
-          <Button
-            variant={activeTab === "header" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("header")}
-          >
-            Defined Headers
-          </Button>
-        )}
-        {hasCustomHeader && (
-          <Button
-            variant={activeTab === "customHeader" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("customHeader")}
-          >
-            Custom Headers
-          </Button>
-        )}
+        <Button
+          variant={activeTab === "headers" ? "secondary" : "ghost"}
+          size="sm"
+          onClick={() => setActiveTab("headers")}
+        >
+          Headers
+        </Button>
         {hasBody && (
           <Button
             variant={activeTab === "body" ? "secondary" : "ghost"}
@@ -309,39 +297,43 @@ export default function RequestForms({
             </ThemedForm>
           </div>
         )}
-        {activeTab === "header" && hasHeader && (
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">
-              Headers defined by the specification.
-            </p>
-            <ThemedForm
-              schema={paramsSchemas!.header as RJSFSchema}
-              uiSchema={headerUi as UiSchema}
-              formData={headerData}
-              onChange={(e: IChangeEvent) =>
-                onHeaderDataChange(e.formData || {})
-              }
-              validator={validator}
-              liveValidate
-              showErrorList={false}
-              formContext={formContext}
-              omitExtraData
-              liveOmit
-            >
-              <div />
-            </ThemedForm>
-          </div>
-        )}
-        {activeTab === "customHeader" && (
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">
-              Add custom headers to the request. These will override any
-              spec-defined headers with the same key.
-            </p>
-            <HeaderEditor
-              headers={customHeaderData}
-              onChange={onCustomHeaderDataChange}
-            />
+        {activeTab === "headers" && (
+          <div className="space-y-6 pt-2">
+            {hasHeader && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Defined Headers
+                </h3>
+                <ThemedForm
+                  schema={paramsSchemas!.header as RJSFSchema}
+                  uiSchema={headerUi as UiSchema}
+                  formData={headerData}
+                  onChange={(e: IChangeEvent) =>
+                    onHeaderDataChange(e.formData || {})
+                  }
+                  validator={validator}
+                  liveValidate
+                  showErrorList={false}
+                  formContext={formContext}
+                  omitExtraData
+                  liveOmit
+                >
+                  <div />
+                </ThemedForm>
+              </div>
+            )}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Custom Headers
+              </h3>
+              <p className="text-xs text-muted-foreground -mt-1">
+                These will override any spec-defined headers with the same key.
+              </p>
+              <HeaderEditor
+                headers={customHeaderData}
+                onChange={onCustomHeaderDataChange}
+              />
+            </div>
           </div>
         )}
         {activeTab === "body" && hasBody && (

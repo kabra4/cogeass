@@ -14,6 +14,8 @@ import { Info, Filter, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { clsx } from "clsx";
 import HeaderEditor from "./HeaderEditor";
+import type { AppliedAuth } from "@/lib/auth";
+import { useAppStore } from "@/store/useAppStore";
 
 const ThemedForm = withTheme(shadcnTheme);
 
@@ -34,6 +36,7 @@ interface RequestFormsProps {
   onBodyDataChange: (data: Record<string, unknown>) => void;
   onSend: () => Promise<void>;
   onCancel: () => void;
+  appliedAuth: AppliedAuth;
   isLoading?: boolean;
   op: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject;
   spec: OpenAPIV3.Document | OpenAPIV3_1.Document;
@@ -54,10 +57,15 @@ export default function RequestForms({
   onBodyDataChange,
   onSend,
   onCancel,
+  appliedAuth,
   isLoading,
   op,
   spec,
 }: RequestFormsProps) {
+  const globalHeaders = useAppStore((s) => s.globalHeaders);
+  const setActivePage = useAppStore((s) => s.setActivePage);
+  const hasAuthHeaders = Object.keys(appliedAuth.headers).length > 0;
+  const hasGlobalHeaders = Object.keys(globalHeaders).length > 0;
   const [activeTab, setActiveTab] = useState<ActiveTab>("path");
   const [showDocs, setShowDocs] = useState(false);
   const [showOptional, setShowOptional] = useState(true);
@@ -100,8 +108,6 @@ export default function RequestForms({
     [bodySchema.schema]
   );
 
-  if (!op) return null;
-
   const formContext = {
     showDescriptions: showDocs,
     showOptional,
@@ -116,12 +122,14 @@ export default function RequestForms({
   // Set the default active tab when the operation changes
   useEffect(() => {
     if (!op) return;
-    const firstAvailable =
-      (hasPath && "path") ||
-      (hasQuery && "query") ||
-      "headers" || // Headers tab is always available
-      (hasBody && "body") ||
-      "path";
+    let firstAvailable: ActiveTab = "headers"; // Headers tab is always available as fallback
+    if (hasPath) {
+      firstAvailable = "path";
+    } else if (hasQuery) {
+      firstAvailable = "query";
+    } else if (hasBody) {
+      firstAvailable = "body";
+    }
     setActiveTab(firstAvailable);
   }, [op, hasPath, hasQuery, hasHeader, hasBody]);
 
@@ -299,6 +307,64 @@ export default function RequestForms({
         )}
         {activeTab === "headers" && (
           <div className="space-y-6 pt-2">
+            {hasAuthHeaders && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Authorization Headers
+                </h3>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Applied from the{" "}
+                  <button
+                    type="button"
+                    className="text-primary underline hover:opacity-80"
+                    onClick={() => setActivePage("auth")}
+                  >
+                    Authorization page
+                  </button>
+                  . These override all other headers.
+                </p>
+                <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                  {Object.entries(appliedAuth.headers).map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="grid grid-cols-[1fr_2fr] gap-3 items-center"
+                    >
+                      <Input value={key} disabled className="font-mono h-8" />
+                      <Input value={value} disabled className="font-mono h-8" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {hasGlobalHeaders && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Global Headers
+                </h3>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Applied to all requests. Manage on the{" "}
+                  <button
+                    type="button"
+                    className="text-primary underline hover:opacity-80"
+                    onClick={() => setActivePage("headers")}
+                  >
+                    Headers page
+                  </button>
+                  .
+                </p>
+                <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                  {Object.entries(globalHeaders).map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="grid grid-cols-[1fr_2fr] gap-3 items-center"
+                    >
+                      <Input value={key} disabled className="font-mono h-8" />
+                      <Input value={value} disabled className="font-mono h-8" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {hasHeader && (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground">

@@ -5,8 +5,10 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (
   set,
   get
 ) => ({
+  activePage: "workspace",
   selected: null,
   selectedKey: null,
+  setActivePage: (page) => set({ activePage: page }),
   setSelected: (op) => {
     set({ selected: op });
     const key = op ? `${op.method}:${op.path}`.toLowerCase() : null;

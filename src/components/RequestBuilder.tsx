@@ -9,10 +9,27 @@ import {
 
 export default function RequestBuilder() {
   const {
-    spec, op, method, path, curl, resp, isLoading,
-    pathData, queryData, headerData, customHeaderData, bodyData, bodySchema,
-    handleSend, handleCancel, onPathDataChange, onQueryDataChange,
-    onHeaderDataChange, onCustomHeaderDataChange, onBodyDataChange
+    spec,
+    op,
+    method,
+    path,
+    curl,
+    resp,
+    isLoading,
+    appliedAuth,
+    pathData,
+    queryData,
+    headerData,
+    customHeaderData,
+    bodyData,
+    bodySchema,
+    handleSend,
+    handleCancel,
+    onPathDataChange,
+    onQueryDataChange,
+    onHeaderDataChange,
+    onCustomHeaderDataChange,
+    onBodyDataChange,
   } = useRequestBuilderState();
 
   if (!op) {
@@ -41,6 +58,7 @@ export default function RequestBuilder() {
           onBodyDataChange={onBodyDataChange}
           onSend={handleSend}
           onCancel={handleCancel}
+          appliedAuth={appliedAuth}
           isLoading={isLoading}
           op={op}
           spec={spec!}

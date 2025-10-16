@@ -26,8 +26,6 @@ import AuthPage from "@/pages/AuthPage";
 import { EnvironmentSelector } from "@/components/EnvironmentSelector";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 
-type ActivePage = "workspace" | "auth" | "envs" | "headers";
-
 export default function App() {
   const hasHydrated = useHasHydrated();
   const {
@@ -37,13 +35,14 @@ export default function App() {
     setOperations,
     baseUrl,
     setBaseUrl,
+    activePage,
+    setActivePage,
     workspaces,
     activeWorkspaceId,
     createWorkspace,
     __applyWorkspaceToRoot,
   } = useAppStore((s) => s);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
-  const [activePage, setActivePage] = useState<ActivePage>("workspace");
   const activeWorkspace =
     activeWorkspaceId && workspaces[activeWorkspaceId]
       ? workspaces[activeWorkspaceId]

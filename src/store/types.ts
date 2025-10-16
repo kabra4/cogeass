@@ -32,17 +32,21 @@ export type OperationState = {
 export interface RequestSlice {
   // Runtime for the ACTIVE workspace
   baseUrl?: string;
+  globalHeaders: Record<string, string>;
   operationState: Record<string, OperationState>;
   setBaseUrl: (url: string) => void;
+  setGlobalHeaders: (headers: Record<string, string>) => void;
   setOperationState: (key: string, data: Partial<OperationState>) => void;
 }
 
 export interface UiSlice {
   // Runtime for the ACTIVE workspace
+  activePage: "workspace" | "auth" | "envs" | "headers";
   selected: OperationRef | null;
   // Helper to remember selection across activations/spec reloads
   selectedKey?: string | null; // "method:path" in lower-case
   setSelected: (op: OperationRef | null) => void;
+  setActivePage: (page: "workspace" | "auth" | "envs" | "headers") => void;
 }
 
 export type AuthState = {
@@ -84,6 +88,7 @@ export interface EnvironmentSlice {
 // Persisted per-workspace data
 export type WorkspaceData = {
   baseUrl?: string;
+  globalHeaders: Record<string, string>;
   operationState: Record<string, OperationState>;
   selectedKey?: string | null; // "method:path" lowercase
   auth: AuthState;

@@ -1,5 +1,11 @@
 import type { StateCreator } from "zustand";
-import type { AppState, WorkspaceSlice, Workspace, WorkspaceData, AuthState } from "./types";
+import type {
+  AppState,
+  WorkspaceSlice,
+  Workspace,
+  WorkspaceData,
+  AuthState,
+} from "./types";
 
 const newAuthState = (): AuthState => ({
   schemes: {},
@@ -9,6 +15,7 @@ const newAuthState = (): AuthState => ({
 const emptyWorkspaceData = (): WorkspaceData => ({
   baseUrl: "",
   operationState: {},
+  globalHeaders: {},
   selectedKey: null,
   auth: newAuthState(),
   environments: {},
@@ -26,16 +33,20 @@ const makeWorkspace = (name: string): Workspace => {
   };
 };
 
-export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice> = (
-  set,
-  get
-) => ({
+export const createWorkspaceSlice: StateCreator<
+  AppState,
+  [],
+  [],
+  WorkspaceSlice
+> = (set, get) => ({
   workspaces: {},
   workspaceOrder: [],
   activeWorkspaceId: null,
 
   createWorkspace: (name?: string) => {
-    const ws = makeWorkspace(name?.trim() || `Workspace ${Object.keys(get().workspaces).length + 1}`);
+    const ws = makeWorkspace(
+      name?.trim() || `Workspace ${Object.keys(get().workspaces).length + 1}`
+    );
     set((state) => ({
       workspaces: { ...state.workspaces, [ws.id]: ws },
       workspaceOrder: [...state.workspaceOrder, ws.id],
@@ -46,6 +57,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       operations: [],
       selected: null,
       selectedKey: null,
+      globalHeaders: ws.data.globalHeaders || {},
       baseUrl: ws.data.baseUrl,
       operationState: ws.data.operationState,
       auth: ws.data.auth,
@@ -79,7 +91,10 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       const newWorkspaces = { ...state.workspaces };
       delete newWorkspaces[id];
       const newOrder = state.workspaceOrder.filter((x) => x !== id);
-      const newActive = state.activeWorkspaceId === id ? newOrder[0] ?? null : state.activeWorkspaceId;
+      const newActive =
+        state.activeWorkspaceId === id
+          ? newOrder[0] ?? null
+          : state.activeWorkspaceId;
       return {
         workspaces: newWorkspaces,
         workspaceOrder: newOrder,
@@ -97,6 +112,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
         operations: [],
         selected: null,
         selectedKey: null,
+        globalHeaders: {},
         baseUrl: "",
         operationState: {},
         auth: newAuthState(),
@@ -124,6 +140,7 @@ export const createWorkspaceSlice: StateCreator<AppState, [], [], WorkspaceSlice
       operations: [],
       selected: null,
       selectedKey: ws.data.selectedKey ?? null,
+      globalHeaders: ws.data.globalHeaders || {},
       baseUrl: ws.data.baseUrl,
       operationState: ws.data.operationState,
       auth: ws.data.auth,

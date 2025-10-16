@@ -8,6 +8,7 @@ export const createRequestSlice: StateCreator<
   RequestSlice
 > = (set, get) => ({
   baseUrl: "",
+  globalHeaders: {},
   operationState: {},
   setBaseUrl: (url) => {
     set({ baseUrl: url });
@@ -18,6 +19,22 @@ export const createRequestSlice: StateCreator<
         const updated = {
           ...ws,
           data: { ...ws.data, baseUrl: url },
+        };
+        set((state) => ({
+          workspaces: { ...state.workspaces, [wsId]: updated },
+        }));
+      }
+    }
+  },
+  setGlobalHeaders: (headers) => {
+    set({ globalHeaders: headers });
+    const wsId = get().activeWorkspaceId;
+    if (wsId) {
+      const ws = get().workspaces[wsId];
+      if (ws) {
+        const updated = {
+          ...ws,
+          data: { ...ws.data, globalHeaders: headers },
         };
         set((state) => ({
           workspaces: { ...state.workspaces, [wsId]: updated },

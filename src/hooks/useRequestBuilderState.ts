@@ -16,10 +16,12 @@ const useOperationStateForKey = (key: string) =>
 const useAuthState = () => useAppStore((s) => s.auth);
 const useEnvironments = () => useAppStore((s) => s.environments);
 const useActiveEnvironmentId = () => useAppStore((s) => s.activeEnvironmentId);
+const useGlobalHeaders = () => useAppStore((s) => s.globalHeaders);
 
 export function useRequestBuilderState() {
   const spec = useAppStore((s) => s.spec);
   const baseUrl = useAppStore((s) => s.baseUrl);
+  const globalHeaders = useGlobalHeaders();
   const selected = useSelectedOp();
   const setOperationState = useAppStore((s) => s.setOperationState);
   const authState = useAuthState();
@@ -72,6 +74,10 @@ export function useRequestBuilderState() {
   const resolvedData = useMemo(() => {
     return {
       baseUrl: resolveVariables(baseUrl || "", activeEnvironmentVariables),
+      globalHeaders: resolveVariables(
+        globalHeaders,
+        activeEnvironmentVariables
+      ),
       pathData: resolveVariables(pathData, activeEnvironmentVariables),
       queryData: resolveVariables(queryData, activeEnvironmentVariables),
       headerData: resolveVariables(headerData, activeEnvironmentVariables),
@@ -83,6 +89,7 @@ export function useRequestBuilderState() {
     };
   }, [
     baseUrl,
+    globalHeaders,
     pathData,
     queryData,
     headerData,
@@ -109,6 +116,7 @@ export function useRequestBuilderState() {
       );
     // Auth headers should overwrite any others
     const mergedHeaders = {
+      ...norm(resolvedData.globalHeaders),
       ...norm(resolvedData.headerData as Record<string, string>),
       ...norm(resolvedData.customHeaderData),
       ...norm(appliedAuth.headers),
@@ -152,6 +160,7 @@ export function useRequestBuilderState() {
       );
     // Auth headers should overwrite any others
     const mergedHeaders = {
+      ...norm(resolvedData.globalHeaders),
       ...norm(resolvedData.headerData as Record<string, string>),
       ...norm(resolvedData.customHeaderData),
       ...norm(appliedAuth.headers),
@@ -255,6 +264,7 @@ export function useRequestBuilderState() {
     path,
     curl,
     resp,
+    appliedAuth,
     isLoading,
     pathData,
     queryData,

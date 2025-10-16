@@ -19,7 +19,9 @@ const isTauri = () =>
  * @param input - A URL string or a File object.
  * @returns A fully dereferenced OpenAPI 3.0+ specification.
  */
-export async function loadSpec(input: string | File): Promise<{ spec: DerefSpec; id: string }> {
+export async function loadSpec(
+  input: string | File
+): Promise<{ spec: DerefSpec; id: string }> {
   try {
     let specObject: any;
 
@@ -86,6 +88,10 @@ export function listOperations(spec: DerefSpec) {
     tag: string;
   }> = [];
   for (const [path, item] of Object.entries(spec.paths || {})) {
+    const pathItem = item as
+      | OpenAPIV3.PathItemObject
+      | OpenAPIV3_1.PathItemObject;
+
     for (const method of [
       "get",
       "post",
@@ -96,10 +102,17 @@ export function listOperations(spec: DerefSpec) {
       "options",
       "trace",
     ] as const) {
-      const op = (
-        item as OpenAPIV3.PathItemObject | OpenAPIV3_1.PathItemObject
-      )?.[method];
+      const op = pathItem?.[method];
       if (!op) continue;
+
+      const combinedParameters = [
+        ...(pathItem.parameters || []),
+        ...(op.parameters || []),
+      ];
+      if (combinedParameters.length > 0) {
+        op.parameters = combinedParameters;
+      }
+
       const tag = op.tags?.[0] ?? "default";
       ops.push({ method, path, op, tag });
     }

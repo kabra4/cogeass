@@ -166,9 +166,9 @@ export default function RequestForms({
   const canClear = ["path", "query", "headers", "body"].includes(activeTab);
 
   return (
-    <div className="flex flex-col gap-3 h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Sticky sub-header for operation + controls */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-2">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4">
         <div className="flex flex-wrap items-center gap-2 py-2">
           <Badge className={clsx("w-14 justify-center", methodColor)}>
             {method}
@@ -228,7 +228,7 @@ export default function RequestForms({
       </div>
 
       {/* Button-based Tab Navigation */}
-      <div className="flex flex-wrap items-center gap-2 px-2">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
         {hasPath && (
           <Button
             variant={activeTab === "path" ? "secondary" : "ghost"}
@@ -266,7 +266,7 @@ export default function RequestForms({
       </div>
 
       {/* Content Area */}
-      <div className="flex-grow overflow-auto px-2 pb-2">
+      <div className="flex-grow overflow-auto px-4 pb-3">
         {activeTab === "path" && hasPath && (
           <div className="space-y-4 pt-2">
             <ThemedForm

@@ -50,15 +50,17 @@ export default function WorkspacePage() {
       }}
     >
       <ResizablePanel defaultSize={layout?.[0] ?? 25} minSize={20}>
-        <div className="border-r h-full p-4 overflow-auto">
-          <OperationExplorer />
+        <div className="border-r h-full overflow-auto">
+          <div className="p-4">
+            <OperationExplorer />
+          </div>
         </div>
       </ResizablePanel>
       <ResizableHandle className="w-2 bg-muted flex items-center justify-center">
         <GripHorizontal className="h-10 w-1.5 text-muted-foreground" />
       </ResizableHandle>
       <ResizablePanel defaultSize={layout?.[1] ?? 75} minSize={50}>
-        <div className="h-full p-4 overflow-auto">
+        <div className="h-full py-4 pl-2 pr-0 overflow-auto overflow-x-clip">
           <RequestBuilder />
         </div>
       </ResizablePanel>

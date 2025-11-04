@@ -1,3 +1,4 @@
+import { useState } from "react";
 import RequestForms from "./RequestForms";
 import Previews from "./Previews";
 import { useRequestBuilderState } from "@/hooks/useRequestBuilderState";
@@ -7,7 +8,11 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 
+type TabType = "body" | "curl" | "response";
+
 export default function RequestBuilder() {
+  const [activePreviewTab, setActivePreviewTab] = useState<TabType>("body");
+
   const {
     spec,
     op,
@@ -31,6 +36,11 @@ export default function RequestBuilder() {
     onCustomHeaderDataChange,
     onBodyDataChange,
   } = useRequestBuilderState();
+
+  const handleSendWithTabSwitch = async () => {
+    setActivePreviewTab("response");
+    await handleSend();
+  };
 
   if (!op) {
     return (
@@ -56,7 +66,7 @@ export default function RequestBuilder() {
           onCustomHeaderDataChange={onCustomHeaderDataChange}
           bodyData={bodyData}
           onBodyDataChange={onBodyDataChange}
-          onSend={handleSend}
+          onSend={handleSendWithTabSwitch}
           onCancel={handleCancel}
           appliedAuth={appliedAuth}
           isLoading={isLoading}
@@ -72,6 +82,8 @@ export default function RequestBuilder() {
           curl={curl}
           resp={resp}
           isLoading={isLoading}
+          activeTab={activePreviewTab}
+          onTabChange={setActivePreviewTab}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

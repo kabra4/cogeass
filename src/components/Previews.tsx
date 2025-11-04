@@ -20,6 +20,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+type TabType = "body" | "curl" | "response";
+
 interface PreviewsProps {
   bodyData: Record<string, unknown>;
   bodySchema: {
@@ -36,9 +38,9 @@ interface PreviewsProps {
     timestamp: number;
   } | null;
   isLoading?: boolean;
+  activeTab?: TabType;
+  onTabChange?: (tab: TabType) => void;
 }
-
-type TabType = "body" | "curl" | "response";
 
 function safeStringify(v: unknown, spaces = 2): string {
   try {
@@ -54,8 +56,19 @@ export default function Previews({
   curl,
   resp,
   isLoading = false,
+  activeTab: controlledActiveTab,
+  onTabChange,
 }: PreviewsProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("body");
+  const [internalActiveTab, setInternalActiveTab] = useState<TabType>("body");
+
+  const activeTab = controlledActiveTab ?? internalActiveTab;
+  const setActiveTab = (tab: TabType) => {
+    if (onTabChange) {
+      onTabChange(tab);
+    } else {
+      setInternalActiveTab(tab);
+    }
+  };
   const [copyBodySuccess, setCopyBodySuccess] = useState(false);
   const [copyCurlSuccess, setCopyCurlSuccess] = useState(false);
   const [copyResponseSuccess, setCopyResponseSuccess] = useState(false);

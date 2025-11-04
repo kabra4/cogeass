@@ -10,15 +10,38 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
   set
 ) => ({
   auth: initialAuthState,
+  /**
+   * Updates the security schemes and preserves existing auth values.
+   *
+   * This is called when a spec is loaded/reloaded. It:
+   * 1. Preserves auth values for schemes that still exist in the new spec
+   * 2. Removes auth values for schemes no longer in the spec
+   * 3. Syncs the changes to the active workspace for persistence
+   *
+   * Auth data is persisted to localStorage via the workspace container,
+   * ensuring credentials survive page refreshes and spec reloads.
+   */
   setAuthSchemes: (schemes) => {
     set((state) => {
+      // Preserve existing values for schemes that still exist in the new spec
+      const preservedValues: Record<string, Record<string, string>> = {};
+      const newSchemeNames = Object.keys(schemes);
+
+      for (const [schemeName, schemeValue] of Object.entries(
+        state.auth.values
+      )) {
+        if (newSchemeNames.includes(schemeName)) {
+          preservedValues[schemeName] = schemeValue;
+        }
+      }
+
       const nextAuth = {
         ...state.auth,
         schemes,
-        // Reset values to avoid stale data from a previous spec
-        values: {},
+        values: preservedValues,
       };
-      // Also copy to active workspace
+
+      // Sync to active workspace for persistence (via zustand persist middleware)
       const wsId = state.activeWorkspaceId;
       let updatedWorkspaces = state.workspaces;
       if (wsId && state.workspaces[wsId]) {
@@ -31,6 +54,12 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
       return { auth: nextAuth, workspaces: updatedWorkspaces };
     });
   },
+  /**
+   * Updates the auth value for a specific security scheme.
+   *
+   * This is called when the user enters credentials in the Auth page.
+   * Changes are immediately synced to the workspace for persistence.
+   */
   setAuthValue: (schemeName, value) => {
     set((state) => {
       const nextAuth = {
@@ -40,6 +69,8 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
           [schemeName]: value,
         },
       };
+
+      // Sync to active workspace for persistence
       const wsId = state.activeWorkspaceId;
       let updatedWorkspaces = state.workspaces;
       if (wsId && state.workspaces[wsId]) {
@@ -52,6 +83,11 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
       return { auth: nextAuth, workspaces: updatedWorkspaces };
     });
   },
+  /**
+   * Clears all auth schemes and values.
+   *
+   * This completely resets the auth state and syncs to the workspace.
+   */
   clearAuth: () =>
     set((state) => {
       const wsId = state.activeWorkspaceId;

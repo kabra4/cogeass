@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useAppStore } from "@/store/useAppStore";
+import type { SecurityScheme } from "@/store/types";
 import {
   Card,
   CardContent,
@@ -18,7 +19,7 @@ function AuthSchemeForm({
   scheme,
 }: {
   schemeName: string;
-  scheme: any;
+  scheme: SecurityScheme;
 }) {
   // Select state and actions separately to ensure stable references.
   const values = useAppStore((s) => s.auth.values[schemeName]) || {};
@@ -132,11 +133,14 @@ export default function AuthPage() {
           </p>
         </div>
         <Button
+          variant="outline"
           onClick={() =>
-            toast.info("Credentials are saved automatically as you type.")
+            toast.success(
+              "Credentials are automatically saved to IndexedDB and persist across page refreshes and spec reloads."
+            )
           }
         >
-          Save Status
+          💾 Auto-Saved
         </Button>
       </div>
 

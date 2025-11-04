@@ -31,6 +31,7 @@ export const useAppStore = create<AppState>()(
         workspaces: state.workspaces,
         workspaceOrder: state.workspaceOrder,
         activeWorkspaceId: state.activeWorkspaceId,
+        // operationState is NOT persisted here - it's in IndexedDB now
       }),
       merge: (persistedState, currentState) => {
         // Migration: convert legacy single-workspace persisted data into first workspace
@@ -120,6 +121,8 @@ export const useAppStore = create<AppState>()(
             specId: legacySpecId,
             data: {
               baseUrl: legacyBaseUrl,
+              globalHeaders:
+                (persisted?.globalHeaders as Record<string, string>) ?? {},
               operationState: legacyOperationState,
               selectedKey: legacySelectedKey,
               auth: legacyAuth,

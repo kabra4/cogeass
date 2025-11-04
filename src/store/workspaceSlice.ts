@@ -6,6 +6,7 @@ import type {
   WorkspaceData,
   AuthState,
 } from "./types";
+import { operationRepository } from "@/lib/storage/OperationRepository";
 
 const newAuthState = (): AuthState => ({
   schemes: {},
@@ -85,7 +86,17 @@ export const createWorkspaceSlice: StateCreator<
     });
   },
 
-  removeWorkspace: (id) => {
+  removeWorkspace: async (id) => {
+    // Clean up IndexedDB for this workspace
+    try {
+      await operationRepository.deleteWorkspaceOperations(id);
+    } catch (error) {
+      console.error(
+        "Failed to clean up workspace operations from IndexedDB:",
+        error
+      );
+    }
+
     set((state) => {
       if (!state.workspaces[id]) return state;
       const newWorkspaces = { ...state.workspaces };
@@ -127,8 +138,19 @@ export const createWorkspaceSlice: StateCreator<
     if (id === null) return;
     const ws = get().workspaces[id];
     if (!ws) return;
-    set({ activeWorkspaceId: id });
+
+    // Clear current operation states before switching
+    set({
+      activeWorkspaceId: id,
+      operationState: {},
+    });
+
     get().__applyWorkspaceToRoot(id);
+
+    // If there's a selected operation, load its data from IndexedDB
+    if (ws.data.selectedKey) {
+      get().loadOperationFromDB(ws.data.selectedKey);
+    }
   },
 
   __applyWorkspaceToRoot: (id) => {

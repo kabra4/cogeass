@@ -27,6 +27,17 @@ export type OperationState = {
   headerData?: Record<string, unknown>;
   customHeaderData?: Record<string, string>;
   bodyData?: Record<string, unknown>;
+  // Response data per operation
+  response?: {
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    bodyText: string;
+    bodyJson: unknown;
+    timestamp: number;
+  };
+  // Metadata
+  lastModified?: number;
 };
 
 export interface RequestSlice {
@@ -37,6 +48,15 @@ export interface RequestSlice {
   setBaseUrl: (url: string) => void;
   setGlobalHeaders: (headers: Record<string, string>) => void;
   setOperationState: (key: string, data: Partial<OperationState>) => void;
+  // Response-specific actions
+  setOperationResponse: (
+    key: string,
+    response: OperationState["response"]
+  ) => void;
+  clearOperationResponse: (key: string) => void;
+  // IndexedDB persistence sync
+  loadOperationFromDB: (key: string) => Promise<void>;
+  persistOperationToDB: (key: string) => Promise<void>;
 }
 
 export interface UiSlice {
@@ -86,10 +106,12 @@ export interface EnvironmentSlice {
 }
 
 // Persisted per-workspace data
+// Note: operationState is NOT persisted in localStorage anymore
+// It's stored in IndexedDB and lazy-loaded per operation
 export type WorkspaceData = {
   baseUrl?: string;
   globalHeaders: Record<string, string>;
-  operationState: Record<string, OperationState>;
+  operationState: Record<string, OperationState>; // Runtime only, loaded from IndexedDB
   selectedKey?: string | null; // "method:path" lowercase
   auth: AuthState;
   environments: Record<string, Environment>;

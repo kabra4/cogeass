@@ -25,6 +25,8 @@ import HeadersPage from "@/pages/HeadersPage";
 import AuthPage from "@/pages/AuthPage";
 import { EnvironmentSelector } from "@/components/EnvironmentSelector";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
+import { runMigrationIfNeeded } from "@/lib/storage/migrations";
+import { operationRepository } from "@/lib/storage/OperationRepository";
 
 export default function App() {
   const hasHydrated = useHasHydrated();
@@ -47,6 +49,47 @@ export default function App() {
     activeWorkspaceId && workspaces[activeWorkspaceId]
       ? workspaces[activeWorkspaceId]
       : null;
+
+  // Run migration on first load
+  useEffect(() => {
+    const runMigration = async () => {
+      try {
+        await runMigrationIfNeeded();
+      } catch (error) {
+        console.error("Migration failed:", error);
+        // Don't block the app if migration fails
+      }
+    };
+    runMigration();
+  }, []);
+
+  // Periodic cleanup of old responses (older than 30 days)
+  useEffect(() => {
+    const cleanupOldResponses = async () => {
+      try {
+        const thirtyDaysAgo = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+        const deleted = await operationRepository.cleanupOldResponses(
+          thirtyDaysAgo
+        );
+        if (deleted > 0) {
+          console.log(`Cleaned up ${deleted} old responses from IndexedDB`);
+        }
+      } catch (error) {
+        console.error("Failed to cleanup old responses:", error);
+      }
+    };
+
+    // Run cleanup on mount
+    cleanupOldResponses();
+
+    // Run cleanup daily
+    const cleanupInterval = setInterval(
+      cleanupOldResponses,
+      24 * 60 * 60 * 1000
+    );
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   useEffect(() => {
     if (!hasHydrated) return;

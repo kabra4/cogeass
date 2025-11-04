@@ -4,6 +4,7 @@ import { getJsonBodySchema } from "@/lib/schema";
 import { send, buildCurlFromParts } from "@/lib/request";
 import { resolveOperationAuth } from "@/lib/auth";
 import { resolveVariables } from "@/lib/templating";
+import { debounce } from "@/lib/utils";
 
 // Create stable empty object references to prevent infinite loops
 const EMPTY_OPERATION_STATE = {};
@@ -24,6 +25,7 @@ export function useRequestBuilderState() {
   const globalHeaders = useGlobalHeaders();
   const selected = useSelectedOp();
   const setOperationState = useAppStore((s) => s.setOperationState);
+  const setOperationResponse = useAppStore((s) => s.setOperationResponse);
   const authState = useAuthState();
   const environments = useEnvironments();
   const activeEnvironmentId = useActiveEnvironmentId();
@@ -43,13 +45,10 @@ export function useRequestBuilderState() {
   } = operationState;
 
   const [curl, setCurl] = useState("");
-  const [resp, setResp] = useState<{
-    status: number;
-    statusText: string;
-    headers: Record<string, string>;
-    bodyText: string;
-    bodyJson: unknown;
-  } | null>(null);
+  // Get response from store instead of local state
+  const resp = useAppStore(
+    (s) => s.operationState[operationKey]?.response || null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -102,6 +101,40 @@ export function useRequestBuilderState() {
     if (!spec || !op) return { schema: null, mediaType: null };
     return getJsonBodySchema(spec, op);
   }, [spec, op]);
+
+  // Load operation data from IndexedDB when operation changes
+  useEffect(() => {
+    if (operationKey) {
+      useAppStore.getState().loadOperationFromDB(operationKey);
+    }
+  }, [operationKey]);
+
+  // Debounced persistence for form changes
+  const debouncedPersist = useMemo(
+    () =>
+      debounce<(key: string) => void>((key: string) => {
+        useAppStore.getState().persistOperationToDB(key);
+      }, 1000),
+    []
+  );
+
+  // Persist to IndexedDB when form data changes
+  useEffect(() => {
+    if (
+      operationKey &&
+      (pathData || queryData || headerData || customHeaderData || bodyData)
+    ) {
+      debouncedPersist(operationKey);
+    }
+  }, [
+    pathData,
+    queryData,
+    headerData,
+    customHeaderData,
+    bodyData,
+    operationKey,
+    debouncedPersist,
+  ]);
 
   // useEffect for cURL generation
   useEffect(() => {
@@ -186,13 +219,20 @@ export function useRequestBuilderState() {
 
       // Only set response if this request wasn't aborted
       if (!abortController.signal.aborted) {
-        setResp(r);
+        setOperationResponse(operationKey, {
+          status: r.status,
+          statusText: r.statusText,
+          headers: r.headers,
+          bodyText: r.bodyText,
+          bodyJson: r.bodyJson,
+          timestamp: Date.now(),
+        });
       }
     } catch (error) {
       // Only handle errors if not aborted
       if (!abortController.signal.aborted) {
         console.error("Request failed:", error);
-        setResp({
+        setOperationResponse(operationKey, {
           status: 500,
           statusText: "Request Failed",
           headers: {},
@@ -200,6 +240,7 @@ export function useRequestBuilderState() {
           bodyJson: {
             error: error instanceof Error ? error.message : "Unknown error",
           },
+          timestamp: Date.now(),
         });
       }
     } finally {
@@ -212,7 +253,15 @@ export function useRequestBuilderState() {
         abortControllerRef.current = null;
       }
     }
-  }, [resolvedData, path, method, bodySchema, appliedAuth]);
+  }, [
+    resolvedData,
+    path,
+    method,
+    bodySchema,
+    appliedAuth,
+    operationKey,
+    setOperationResponse,
+  ]);
 
   const handleCancel = useCallback(() => {
     if (abortControllerRef.current) {

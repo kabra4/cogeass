@@ -32,7 +32,8 @@ interface PreviewsProps {
     statusText: string;
     headers: Record<string, string>;
     bodyText: string;
-    bodyJson: any;
+    bodyJson: unknown;
+    timestamp: number;
   } | null;
   isLoading?: boolean;
 }
@@ -102,7 +103,7 @@ export default function Previews({
       } else {
         setCopyResponseSuccess(true);
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to copy to clipboard");
     }
   };

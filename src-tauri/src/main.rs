@@ -33,7 +33,7 @@ async fn make_request(
     body: Option<String>,
 ) -> Result<BackendResponse, String> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
     let method = method.to_uppercase();

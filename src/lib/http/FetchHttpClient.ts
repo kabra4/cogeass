@@ -5,7 +5,7 @@ async function fetchWithTimeout(
   input: RequestInfo,
   init: RequestInit & { timeoutMs?: number } = {}
 ): Promise<Response> {
-  const { timeoutMs = 15000, signal } = init;
+  const { timeoutMs = 600000, signal } = init;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -21,7 +21,7 @@ async function fetchWithTimeout(
 }
 
 class FetchHttpClient implements HttpClient {
-  async send(parts: Parameters<HttpClient['send']>[0]): Promise<HttpResponse> {
+  async send(parts: Parameters<HttpClient["send"]>[0]): Promise<HttpResponse> {
     const res = await fetchWithTimeout(parts.url, {
       method: parts.method,
       headers: parts.headers,
@@ -34,7 +34,9 @@ class FetchHttpClient implements HttpClient {
     let json: unknown = null;
     try {
       json = JSON.parse(text);
-    } catch {}
+    } catch {
+      // Ignore JSON parse errors - json will remain null
+    }
 
     return {
       status: res.status,

@@ -204,6 +204,7 @@ export function useRequestBuilderState() {
     };
 
     try {
+      const startTime = performance.now();
       const r = await send({
         baseUrl: resolvedData.baseUrl,
         path,
@@ -213,9 +214,11 @@ export function useRequestBuilderState() {
         headers: mergedHeaders,
         body: bodySchema.schema ? resolvedData.bodyData : undefined,
         mediaType: bodySchema.mediaType ?? undefined,
-        timeoutMs: 15000,
+        timeoutMs: 600000,
         signal: abortController.signal,
       });
+      const endTime = performance.now();
+      const responseTimeMs = Math.round(endTime - startTime);
 
       // Only set response if this request wasn't aborted
       if (!abortController.signal.aborted) {
@@ -226,6 +229,7 @@ export function useRequestBuilderState() {
           bodyText: r.bodyText,
           bodyJson: r.bodyJson,
           timestamp: Date.now(),
+          responseTimeMs,
         });
       }
     } catch (error) {

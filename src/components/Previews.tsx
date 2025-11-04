@@ -36,6 +36,7 @@ interface PreviewsProps {
     bodyText: string;
     bodyJson: unknown;
     timestamp: number;
+    responseTimeMs?: number;
   } | null;
   isLoading?: boolean;
   activeTab?: TabType;
@@ -48,6 +49,13 @@ function safeStringify(v: unknown, spaces = 2): string {
   } catch {
     return "";
   }
+}
+
+function formatResponseTime(ms: number): string {
+  if (ms >= 1000) {
+    return `${(ms / 1000).toFixed(2)}s`;
+  }
+  return `${ms}ms`;
 }
 
 export default function Previews({
@@ -159,23 +167,30 @@ export default function Previews({
           <div className="flex items-center justify-between gap-4">
             <h3 className="text-sm font-medium">{currentTab.label}</h3>
             {activeTab === "response" && (
-              <div className="text-xs">
+              <div className="text-xs flex items-center gap-3">
                 {isLoading ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     <span className="text-muted-foreground">Sending...</span>
                   </div>
                 ) : resp ? (
-                  <span
-                    className={cn(
-                      "font-semibold",
-                      resp.status >= 200 && resp.status < 300
-                        ? "text-green-600 dark:text-green-500"
-                        : "text-red-600 dark:text-red-500"
+                  <>
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        resp.status >= 200 && resp.status < 300
+                          ? "text-green-600 dark:text-green-500"
+                          : "text-red-600 dark:text-red-500"
+                      )}
+                    >
+                      {resp.status} {resp.statusText}
+                    </span>
+                    {resp.responseTimeMs !== undefined && (
+                      <span className="text-foreground">
+                        • {formatResponseTime(resp.responseTimeMs)}
+                      </span>
                     )}
-                  >
-                    {resp.status} {resp.statusText}
-                  </span>
+                  </>
                 ) : (
                   <span className="text-muted-foreground">No response yet</span>
                 )}

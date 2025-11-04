@@ -127,7 +127,7 @@ export default function App() {
           const specData = await specRepository.getById(ws.specId);
           if (!cancelled) {
             if (specData) {
-              setSpec(specData, ws.specId);
+              setSpec(specData, ws.specId, ws.specUrl || undefined);
               setOperations(listOperations(specData));
             } else {
               console.warn(
@@ -168,7 +168,7 @@ export default function App() {
     setIsAutoLoading(true);
     try {
       const { spec, id } = await loadSpec(url);
-      setSpec(spec, id);
+      setSpec(spec, id, url);
       setOperations(listOperations(spec));
     } catch {
       toast.error("Failed to load Petstore example");

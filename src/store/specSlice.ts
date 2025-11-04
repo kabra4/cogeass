@@ -7,21 +7,22 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
 ) => ({
   spec: null,
   specId: null,
+  specUrl: null,
   operations: [],
-  setSpec: (spec, id) => {
+  setSpec: (spec, id, url) => {
     // Extract security schemes and update the auth store (active workspace)
     const schemes = spec.components?.securitySchemes || {};
     get().setAuthSchemes(schemes as Record<string, SecurityScheme>);
 
-    // Update runtime and persist specId into the active workspace (only if different)
+    // Update runtime and persist specId and specUrl into the active workspace
     const activeId = get().activeWorkspaceId;
     if (activeId) {
       const ws = get().workspaces[activeId];
-      if (ws && ws.specId !== id) {
+      if (ws && (ws.specId !== id || ws.specUrl !== url)) {
         set((state) => ({
           workspaces: {
             ...state.workspaces,
-            [activeId]: { ...ws, specId: id },
+            [activeId]: { ...ws, specId: id, specUrl: url || null },
           },
         }));
       }
@@ -29,6 +30,7 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
     set({
       spec,
       specId: id,
+      specUrl: url || null,
       selected: null,
       operations: [],
       operationState: {},

@@ -16,8 +16,9 @@ export interface SpecSlice {
   // Runtime for the ACTIVE workspace
   spec: DerefSpec | null;
   specId: string | null;
+  specUrl: string | null; // URL or file name used to load the spec
   operations: OperationRef[];
-  setSpec: (spec: DerefSpec, id: string) => void;
+  setSpec: (spec: DerefSpec, id: string, url?: string) => void;
   setOperations: (ops: OperationRef[]) => void;
 }
 
@@ -123,6 +124,7 @@ export type Workspace = {
   id: string;
   name: string;
   specId: string | null;
+  specUrl?: string | null; // URL or file path used to load the spec
   data: WorkspaceData;
 };
 

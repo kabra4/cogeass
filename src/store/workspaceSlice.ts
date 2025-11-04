@@ -55,6 +55,7 @@ export const createWorkspaceSlice: StateCreator<
       // Clear runtime to be applied by __applyWorkspaceToRoot
       spec: null,
       specId: null,
+      specUrl: null,
       operations: [],
       selected: null,
       selectedKey: null,
@@ -120,6 +121,7 @@ export const createWorkspaceSlice: StateCreator<
       set({
         spec: null,
         specId: null,
+        specUrl: null,
         operations: [],
         selected: null,
         selectedKey: null,
@@ -159,6 +161,7 @@ export const createWorkspaceSlice: StateCreator<
     set({
       spec: null, // will be loaded separately
       specId: ws.specId,
+      specUrl: ws.specUrl || null,
       operations: [],
       selected: null,
       selectedKey: ws.data.selectedKey ?? null,

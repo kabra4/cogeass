@@ -152,16 +152,18 @@ export default function RequestForms({
     }
   };
 
+  const methodColors = {
+    get: "bg-green-600 hover:bg-green-600/80 text-white",
+    post: "bg-blue-600 hover:bg-blue-600/80 text-white",
+    put: "bg-orange-600 hover:bg-orange-600/80 text-white",
+    patch: "bg-yellow-700 hover:bg-yellow-600/80 text-white",
+    delete: "bg-red-600 hover:bg-red-600/80 text-white",
+    head: "bg-gray-600 hover:bg-gray-600/80 text-white",
+    options: "bg-purple-600 hover:bg-purple-600/80 text-white",
+  } as const;
   const methodColor =
-    {
-      GET: "bg-green-500 text-white",
-      POST: "bg-blue-500 text-white",
-      PUT: "bg-orange-500 text-white",
-      PATCH: "bg-yellow-500 text-white",
-      DELETE: "bg-red-500 text-white",
-      HEAD: "bg-gray-500 text-white",
-      OPTIONS: "bg-purple-500 text-white",
-    }[method] || "bg-gray-500 text-white";
+    methodColors[method.toLowerCase() as keyof typeof methodColors] ||
+    "bg-gray-500 hover:bg-gray-500/80 text-white";
 
   const canClear = ["path", "query", "headers", "body"].includes(activeTab);
 
@@ -173,7 +175,16 @@ export default function RequestForms({
           <Badge className={clsx("w-14 justify-center", methodColor)}>
             {method}
           </Badge>
-          <div className="font-mono text-sm truncate flex-1">{path}</div>
+          <div className="flex-1 truncate">
+            <div className={clsx("text-sm", !op.summary && "font-mono")}>
+              {op.summary || path}
+            </div>
+            {op.summary && (
+              <div className="font-mono text-xs text-muted-foreground">
+                {path}
+              </div>
+            )}
+          </div>
           {isLoading ? (
             <Button variant="outline" onClick={onCancel} title="Cancel Request">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />

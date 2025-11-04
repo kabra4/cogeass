@@ -124,13 +124,13 @@ export default function OperationExplorer() {
                     selected.method === o.method &&
                     selected.path === o.path;
                   const methodColors = {
-                    get: "bg-green-500 hover:bg-green-500/80 text-white",
-                    post: "bg-blue-500 hover:bg-blue-500/80 text-white",
-                    put: "bg-orange-500 hover:bg-orange-500/80 text-white",
-                    patch: "bg-yellow-500 hover:bg-yellow-500/80 text-white",
-                    delete: "bg-red-500 hover:bg-red-500/80 text-white",
-                    head: "bg-gray-500 hover:bg-gray-500/80 text-white",
-                    options: "bg-purple-500 hover:bg-purple-500/80 text-white",
+                    get: "bg-green-600 hover:bg-green-600/80 text-white",
+                    post: "bg-blue-600 hover:bg-blue-600/80 text-white",
+                    put: "bg-orange-600 hover:bg-orange-600/80 text-white",
+                    patch: "bg-yellow-700 hover:bg-yellow-600/80 text-white",
+                    delete: "bg-red-600 hover:bg-red-600/80 text-white",
+                    head: "bg-gray-600 hover:bg-gray-600/80 text-white",
+                    options: "bg-purple-600 hover:bg-purple-600/80 text-white",
                   } as const;
                   const methodColor =
                     methodColors[
@@ -151,11 +151,24 @@ export default function OperationExplorer() {
                         {o.method.toUpperCase()}
                       </Badge>
                       <div className="flex-1">
-                        <div className="font-mono text-sm">
-                          <Highlight text={o.path} term={q} />
+                        <div
+                          className={clsx(
+                            "text-sm",
+                            !o.op.summary && "font-mono"
+                          )}
+                        >
+                          <Highlight text={o.op.summary || o.path} term={q} />
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          <Highlight text={o.op.summary || o.tag} term={q} />
+                        <div
+                          className={clsx(
+                            "text-xs text-muted-foreground",
+                            o.op.summary && "font-mono"
+                          )}
+                        >
+                          <Highlight
+                            text={o.op.summary ? o.path : o.tag}
+                            term={q}
+                          />
                         </div>
                       </div>
                     </div>

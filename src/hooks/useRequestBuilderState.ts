@@ -18,6 +18,7 @@ const useAuthState = () => useAppStore((s) => s.auth);
 const useEnvironments = () => useAppStore((s) => s.environments);
 const useActiveEnvironmentId = () => useAppStore((s) => s.activeEnvironmentId);
 const useGlobalHeaders = () => useAppStore((s) => s.globalHeaders);
+const useAddToHistory = () => useAppStore((s) => s.addToHistory);
 
 export function useRequestBuilderState() {
   const spec = useAppStore((s) => s.spec);
@@ -26,6 +27,7 @@ export function useRequestBuilderState() {
   const selected = useSelectedOp();
   const setOperationState = useAppStore((s) => s.setOperationState);
   const setOperationResponse = useAppStore((s) => s.setOperationResponse);
+  const addToHistory = useAddToHistory();
   const authState = useAuthState();
   const environments = useEnvironments();
   const activeEnvironmentId = useActiveEnvironmentId();
@@ -231,6 +233,11 @@ export function useRequestBuilderState() {
           timestamp: Date.now(),
           responseTimeMs,
         });
+
+        // Add to history after successful request
+        if (selected) {
+          addToHistory(selected);
+        }
       }
     } catch (error) {
       // Only handle errors if not aborted

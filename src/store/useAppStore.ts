@@ -6,12 +6,14 @@ import { createUiSlice } from "./uiSlice";
 import { createAuthSlice } from "./authSlice";
 import { createEnvironmentSlice } from "./environmentSlice";
 import { createWorkspaceSlice } from "./workspaceSlice";
+import { createHistorySlice } from "./historySlice";
 import type {
   AppState,
   Workspace,
   OperationState,
   AuthState,
   Environment,
+  HistoryItem,
 } from "./types";
 
 export const useAppStore = create<AppState>()(
@@ -23,6 +25,7 @@ export const useAppStore = create<AppState>()(
       ...createUiSlice(set, get, api),
       ...createAuthSlice(set, get, api),
       ...createEnvironmentSlice(set, get, api),
+      ...createHistorySlice(set, get, api),
     }),
     {
       name: "cogeass-storage",
@@ -68,6 +71,9 @@ export const useAppStore = create<AppState>()(
         const legacyEnvs =
           (persisted?.environments as Record<string, Environment>) ?? {};
         let legacyKeys = (persisted?.environmentKeys as string[]) ?? [];
+        const legacyHistory: HistoryItem[] = Array.isArray(persisted?.history)
+          ? (persisted.history as HistoryItem[])
+          : [];
 
         // Normalize keys if missing
         if (!Array.isArray(legacyKeys) || legacyKeys.length === 0) {
@@ -130,6 +136,7 @@ export const useAppStore = create<AppState>()(
               environmentKeys: legacyKeys,
               activeEnvironmentId:
                 (persisted?.activeEnvironmentId as string) ?? null,
+              history: legacyHistory,
             },
           },
         };

@@ -6,6 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import HistoryPanel from "@/components/HistoryPanel";
 
 type NavItem = {
   id: "workspace" | "auth" | "envs" | "headers";
@@ -27,7 +28,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
   return (
-    <nav className="flex flex-col items-center gap-y-2 p-2 w-16 bg-muted border-r">
+    <nav className="flex flex-col items-center gap-y-2 p-2 w-16 bg-muted border-r h-full">
       <TooltipProvider delayDuration={0}>
         {navItems.map((item) => (
           <Tooltip key={item.id}>
@@ -49,6 +50,7 @@ export default function Sidebar({ activeItem, onItemClick }: SidebarProps) {
           </Tooltip>
         ))}
       </TooltipProvider>
+      <HistoryPanel />
     </nav>
   );
 }

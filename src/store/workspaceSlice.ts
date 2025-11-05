@@ -22,6 +22,7 @@ const emptyWorkspaceData = (): WorkspaceData => ({
   environments: {},
   environmentKeys: [],
   activeEnvironmentId: null,
+  history: [],
 });
 
 const makeWorkspace = (name: string): Workspace => {
@@ -66,6 +67,7 @@ export const createWorkspaceSlice: StateCreator<
       environments: ws.data.environments,
       environmentKeys: ws.data.environmentKeys,
       activeEnvironmentId: ws.data.activeEnvironmentId,
+      history: ws.data.history || [],
     }));
     // Ensure root reflects workspace fields
     get().__applyWorkspaceToRoot(ws.id);
@@ -132,6 +134,7 @@ export const createWorkspaceSlice: StateCreator<
         environments: {},
         environmentKeys: [],
         activeEnvironmentId: null,
+        history: [],
       });
     }
   },
@@ -172,6 +175,7 @@ export const createWorkspaceSlice: StateCreator<
       environments: ws.data.environments,
       environmentKeys: ws.data.environmentKeys,
       activeEnvironmentId: ws.data.activeEnvironmentId,
+      history: ws.data.history || [],
     });
   },
 });

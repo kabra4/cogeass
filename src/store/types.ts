@@ -107,6 +107,18 @@ export interface EnvironmentSlice {
   updateEnvironmentName: (id: string, name: string) => void;
 }
 
+export type HistoryItem = {
+  operationRef: OperationRef;
+  timestamp: number;
+  key: string; // "method:path" for deduplication
+};
+
+export interface HistorySlice {
+  // Runtime for the ACTIVE workspace
+  history: HistoryItem[];
+  addToHistory: (op: OperationRef) => void;
+}
+
 // Persisted per-workspace data
 // Note: operationState is NOT persisted in localStorage anymore
 // It's stored in IndexedDB and lazy-loaded per operation
@@ -119,6 +131,7 @@ export type WorkspaceData = {
   environments: Record<string, Environment>;
   environmentKeys: string[];
   activeEnvironmentId: string | null;
+  history: HistoryItem[];
 };
 
 export type Workspace = {
@@ -146,4 +159,5 @@ export type AppState = SpecSlice &
   UiSlice &
   AuthSlice &
   EnvironmentSlice &
-  WorkspaceSlice;
+  WorkspaceSlice &
+  HistorySlice;

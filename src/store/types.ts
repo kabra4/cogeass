@@ -75,6 +75,8 @@ export interface UiSlice {
 export type AuthState = {
   schemes: Record<string, SecurityScheme>;
   values: Record<string, Record<string, string>>; // e.g., { "myApiKey": { "apiKey": "12345" } }
+  // Per-environment auth values: { envId: { schemeName: { field: value } } }
+  environmentValues: Record<string, Record<string, Record<string, string>>>;
 };
 
 export interface AuthSlice {
@@ -82,6 +84,11 @@ export interface AuthSlice {
   auth: AuthState;
   setAuthSchemes: (schemes: Record<string, SecurityScheme>) => void;
   setAuthValue: (schemeName: string, value: Record<string, string>) => void;
+  setAuthValueForEnvironment: (
+    environmentId: string,
+    schemeName: string,
+    value: Record<string, string>
+  ) => void;
   clearAuth: () => void;
 }
 

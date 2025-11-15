@@ -59,8 +59,8 @@ export function useRequestBuilderState() {
   const op = selected?.op;
 
   const appliedAuth = useMemo(
-    () => resolveOperationAuth(op, authState, spec),
-    [op, authState, spec]
+    () => resolveOperationAuth(op, authState, spec, activeEnvironmentId),
+    [op, authState, spec, activeEnvironmentId]
   );
 
   // Get active environment variables

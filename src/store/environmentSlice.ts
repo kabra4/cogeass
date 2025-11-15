@@ -29,6 +29,17 @@ export const createEnvironmentSlice: StateCreator<
         ...state.environments,
         [id]: newEnvironment,
       };
+
+      // Initialize empty auth values for this environment
+      // Handle legacy workspaces that don't have environmentValues
+      const nextAuth = {
+        ...state.auth,
+        environmentValues: {
+          ...(state.auth.environmentValues || {}),
+          [id]: {},
+        },
+      };
+
       let updatedWorkspaces = state.workspaces;
       const wsId = state.activeWorkspaceId;
       if (wsId && state.workspaces[wsId]) {
@@ -37,11 +48,19 @@ export const createEnvironmentSlice: StateCreator<
           ...state.workspaces,
           [wsId]: {
             ...ws,
-            data: { ...ws.data, environments: nextEnvs },
+            data: {
+              ...ws.data,
+              environments: nextEnvs,
+              auth: nextAuth,
+            },
           },
         };
       }
-      return { environments: nextEnvs, workspaces: updatedWorkspaces };
+      return {
+        environments: nextEnvs,
+        auth: nextAuth,
+        workspaces: updatedWorkspaces,
+      };
     });
 
     return id;
@@ -55,6 +74,16 @@ export const createEnvironmentSlice: StateCreator<
       const newActive =
         state.activeEnvironmentId === id ? null : state.activeEnvironmentId;
 
+      // Remove auth values for this environment
+      // Handle legacy workspaces that don't have environmentValues
+      const newEnvAuthValues = { ...(state.auth.environmentValues || {}) };
+      delete newEnvAuthValues[id];
+
+      const nextAuth = {
+        ...state.auth,
+        environmentValues: newEnvAuthValues,
+      };
+
       let updatedWorkspaces = state.workspaces;
       const wsId = state.activeWorkspaceId;
       if (wsId && state.workspaces[wsId]) {
@@ -67,6 +96,7 @@ export const createEnvironmentSlice: StateCreator<
               ...ws.data,
               environments: newEnvironments,
               activeEnvironmentId: newActive,
+              auth: nextAuth,
             },
           },
         };
@@ -75,6 +105,7 @@ export const createEnvironmentSlice: StateCreator<
       return {
         environments: newEnvironments,
         activeEnvironmentId: newActive,
+        auth: nextAuth,
         workspaces: updatedWorkspaces,
       };
     });

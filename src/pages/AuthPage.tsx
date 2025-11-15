@@ -11,22 +11,44 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 // A component for a single security scheme
 function AuthSchemeForm({
   schemeName,
   scheme,
+  environmentId,
 }: {
   schemeName: string;
   scheme: SecurityScheme;
+  environmentId?: string | null;
 }) {
   // Select state and actions separately to ensure stable references.
-  const values = useAppStore((s) => s.auth.values[schemeName]) || {};
+  const globalValues = useAppStore((s) => s.auth.values[schemeName]) || {};
+  const envValues =
+    useAppStore((s) =>
+      environmentId && s.auth.environmentValues
+        ? s.auth.environmentValues[environmentId]?.[schemeName]
+        : undefined
+    ) || {};
   const setAuthValue = useAppStore((s) => s.setAuthValue);
+  const setAuthValueForEnvironment = useAppStore(
+    (s) => s.setAuthValueForEnvironment
+  );
+
+  // Use environment-specific values if environment is selected, otherwise global
+  const values = environmentId ? envValues : globalValues;
 
   const handleChange = (field: string, value: string) => {
-    setAuthValue(schemeName, { ...values, [field]: value });
+    if (environmentId) {
+      setAuthValueForEnvironment(environmentId, schemeName, {
+        ...values,
+        [field]: value,
+      });
+    } else {
+      setAuthValue(schemeName, { ...values, [field]: value });
+    }
   };
 
   const renderForm = () => {
@@ -119,8 +141,24 @@ function AuthSchemeForm({
 
 export default function AuthPage() {
   const schemes = useAppStore((s) => s.auth.schemes);
+  const environments = useAppStore((s) => s.environments);
+  const activeEnvironmentId = useAppStore((s) => s.activeEnvironmentId);
+
   // Memoize the result of Object.entries to prevent re-creating the array on every render.
   const schemeEntries = React.useMemo(() => Object.entries(schemes), [schemes]);
+  const envList = React.useMemo(
+    () => Object.values(environments),
+    [environments]
+  );
+
+  // Default to active environment or global if no active environment
+  const [selectedTab, setSelectedTab] = React.useState<string>("global");
+
+  React.useEffect(() => {
+    if (activeEnvironmentId && environments[activeEnvironmentId]) {
+      setSelectedTab(activeEnvironmentId);
+    }
+  }, [activeEnvironmentId, environments]);
 
   return (
     <div className="p-4 space-y-4">
@@ -128,15 +166,15 @@ export default function AuthPage() {
         <div>
           <h1 className="text-2xl font-bold">Authorization</h1>
           <p className="text-muted-foreground">
-            Configure credentials for the security schemes defined in your
-            specification.
+            Configure credentials per environment. Each environment can have
+            different authorization values.
           </p>
         </div>
         <Button
           variant="outline"
           onClick={() =>
             toast.success(
-              "Credentials are automatically saved to IndexedDB and persist across page refreshes and spec reloads."
+              "Credentials are automatically saved and persist across page refreshes and spec reloads."
             )
           }
         >
@@ -145,11 +183,40 @@ export default function AuthPage() {
       </div>
 
       {schemeEntries.length > 0 ? (
-        <div className="space-y-4">
-          {schemeEntries.map(([name, scheme]) => (
-            <AuthSchemeForm key={name} schemeName={name} scheme={scheme} />
+        <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+          <TabsList>
+            <TabsTrigger value="global">Global (No Environment)</TabsTrigger>
+            {envList.map((env) => (
+              <TabsTrigger key={env.id} value={env.id}>
+                {env.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="global" className="space-y-4 mt-4">
+            {schemeEntries.map(([name, scheme]) => (
+              <AuthSchemeForm
+                key={name}
+                schemeName={name}
+                scheme={scheme}
+                environmentId={null}
+              />
+            ))}
+          </TabsContent>
+
+          {envList.map((env) => (
+            <TabsContent key={env.id} value={env.id} className="space-y-4 mt-4">
+              {schemeEntries.map(([name, scheme]) => (
+                <AuthSchemeForm
+                  key={name}
+                  schemeName={name}
+                  scheme={scheme}
+                  environmentId={env.id}
+                />
+              ))}
+            </TabsContent>
           ))}
-        </div>
+        </Tabs>
       ) : (
         <div className="h-64 flex items-center justify-center border-2 border-dashed rounded-lg">
           <p className="text-muted-foreground">

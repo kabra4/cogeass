@@ -11,6 +11,7 @@ import { operationRepository } from "@/lib/storage/OperationRepository";
 const newAuthState = (): AuthState => ({
   schemes: {},
   values: {},
+  environmentValues: {},
 });
 
 const emptyWorkspaceData = (): WorkspaceData => ({
@@ -166,6 +167,13 @@ export const createWorkspaceSlice: StateCreator<
   __applyWorkspaceToRoot: (id) => {
     const ws = get().workspaces[id];
     if (!ws) return;
+
+    // Migrate legacy workspaces: ensure auth has environmentValues field
+    const migratedAuth = {
+      ...ws.data.auth,
+      environmentValues: ws.data.auth.environmentValues || {},
+    };
+
     set({
       spec: null, // will be loaded separately
       specId: ws.specId,
@@ -176,11 +184,27 @@ export const createWorkspaceSlice: StateCreator<
       globalHeaders: ws.data.globalHeaders || {},
       baseUrl: ws.data.baseUrl,
       operationState: ws.data.operationState,
-      auth: ws.data.auth,
+      auth: migratedAuth,
       environments: ws.data.environments,
       environmentKeys: ws.data.environmentKeys,
       activeEnvironmentId: ws.data.activeEnvironmentId,
       history: ws.data.history || [],
     });
+
+    // Persist the migration back to the workspace
+    if (!ws.data.auth.environmentValues) {
+      set((state) => ({
+        workspaces: {
+          ...state.workspaces,
+          [id]: {
+            ...ws,
+            data: {
+              ...ws.data,
+              auth: migratedAuth,
+            },
+          },
+        },
+      }));
+    }
   },
 });

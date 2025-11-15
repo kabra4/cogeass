@@ -13,12 +13,15 @@ export type AppliedAuth = {
  *
  * @param op - The operation object from the spec.
  * @param authState - The current authentication state from the store.
+ * @param spec - The current OpenAPI spec.
+ * @param activeEnvironmentId - The ID of the active environment (optional).
  * @returns An object containing headers and query parameters to be applied.
  */
 export function resolveOperationAuth(
   op: OperationRef["op"] | undefined,
   authState: AuthState,
-  spec: DerefSpec | null
+  spec: DerefSpec | null,
+  activeEnvironmentId?: string | null
 ): AppliedAuth {
   const result: AppliedAuth = { headers: {}, queryParams: {} };
 
@@ -29,11 +32,20 @@ export function resolveOperationAuth(
     return result;
   }
 
-  const { schemes, values } = authState;
+  const { schemes, values, environmentValues } = authState;
+
+  // Use environment-specific values if an environment is active, otherwise use global values
+  // Handle legacy workspaces that don't have environmentValues
+  const activeValues =
+    activeEnvironmentId &&
+    environmentValues &&
+    environmentValues[activeEnvironmentId]
+      ? environmentValues[activeEnvironmentId]
+      : values;
 
   for (const schemeName in securityRequirement) {
     const scheme = schemes[schemeName];
-    const userValues = values[schemeName];
+    const userValues = activeValues[schemeName];
 
     if (!scheme || !userValues) continue;
 

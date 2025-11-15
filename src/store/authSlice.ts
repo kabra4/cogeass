@@ -4,6 +4,7 @@ import type { AppState, AuthSlice, AuthState } from "./types";
 const initialAuthState: AuthState = {
   schemes: {},
   values: {},
+  environmentValues: {},
 };
 
 export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
@@ -35,10 +36,32 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
         }
       }
 
+      // Preserve environment-specific auth values for schemes that still exist
+      const preservedEnvValues: Record<
+        string,
+        Record<string, Record<string, string>>
+      > = {};
+      // Handle legacy workspaces that don't have environmentValues
+      if (state.auth.environmentValues) {
+        for (const [envId, envAuthValues] of Object.entries(
+          state.auth.environmentValues
+        )) {
+          preservedEnvValues[envId] = {};
+          for (const [schemeName, schemeValue] of Object.entries(
+            envAuthValues
+          )) {
+            if (newSchemeNames.includes(schemeName)) {
+              preservedEnvValues[envId][schemeName] = schemeValue;
+            }
+          }
+        }
+      }
+
       const nextAuth = {
         ...state.auth,
         schemes,
         values: preservedValues,
+        environmentValues: preservedEnvValues,
       };
 
       // Sync to active workspace for persistence (via zustand persist middleware)
@@ -55,9 +78,9 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
     });
   },
   /**
-   * Updates the auth value for a specific security scheme.
+   * Updates the auth value for a specific security scheme (global/no environment).
    *
-   * This is called when the user enters credentials in the Auth page.
+   * This is called when the user enters credentials in the Auth page with no environment.
    * Changes are immediately synced to the workspace for persistence.
    */
   setAuthValue: (schemeName, value) => {
@@ -67,6 +90,41 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (
         values: {
           ...state.auth.values,
           [schemeName]: value,
+        },
+      };
+
+      // Sync to active workspace for persistence
+      const wsId = state.activeWorkspaceId;
+      let updatedWorkspaces = state.workspaces;
+      if (wsId && state.workspaces[wsId]) {
+        const ws = state.workspaces[wsId];
+        updatedWorkspaces = {
+          ...state.workspaces,
+          [wsId]: { ...ws, data: { ...ws.data, auth: nextAuth } },
+        };
+      }
+      return { auth: nextAuth, workspaces: updatedWorkspaces };
+    });
+  },
+  /**
+   * Updates the auth value for a specific security scheme in a specific environment.
+   *
+   * This is called when the user enters credentials in the Auth page for a specific environment.
+   * Changes are immediately synced to the workspace for persistence.
+   */
+  setAuthValueForEnvironment: (environmentId, schemeName, value) => {
+    set((state) => {
+      // Ensure environmentValues exists (for legacy workspaces)
+      const currentEnvValues = state.auth.environmentValues || {};
+
+      const nextAuth = {
+        ...state.auth,
+        environmentValues: {
+          ...currentEnvValues,
+          [environmentId]: {
+            ...(currentEnvValues[environmentId] || {}),
+            [schemeName]: value,
+          },
         },
       };
 

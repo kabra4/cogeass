@@ -22,6 +22,9 @@ async function fetchWithTimeout(
 
 class FetchHttpClient implements HttpClient {
   async send(parts: Parameters<HttpClient["send"]>[0]): Promise<HttpResponse> {
+    // Start timing the request
+    const startTime = performance.now();
+
     const res = await fetchWithTimeout(parts.url, {
       method: parts.method,
       headers: parts.headers,
@@ -30,7 +33,19 @@ class FetchHttpClient implements HttpClient {
       timeoutMs: parts.timeoutMs,
     });
 
-    const text = await res.text();
+    // Get raw bytes first to calculate accurate size
+    const arrayBuffer = await res.arrayBuffer();
+
+    // Calculate response time in milliseconds
+    const endTime = performance.now();
+    const responseTimeMs = Math.round(endTime - startTime);
+
+    // Calculate response size in bytes (raw payload size)
+    const responseSizeBytes = arrayBuffer.byteLength;
+
+    // Decode bytes to text
+    const text = new TextDecoder().decode(arrayBuffer);
+
     let json: unknown = null;
     try {
       json = JSON.parse(text);
@@ -44,6 +59,8 @@ class FetchHttpClient implements HttpClient {
       headers: Object.fromEntries(res.headers.entries()),
       bodyText: text,
       bodyJson: json,
+      responseTimeMs,
+      responseSizeBytes,
     };
   }
 }

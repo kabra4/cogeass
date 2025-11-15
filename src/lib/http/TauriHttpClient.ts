@@ -7,6 +7,8 @@ type TauriResponse = {
   status_text: string;
   headers: Record<string, string>;
   body_text: string;
+  response_time_ms: number;
+  response_size_bytes: number;
 };
 
 class TauriHttpClient implements HttpClient {
@@ -22,7 +24,9 @@ class TauriHttpClient implements HttpClient {
       let json: unknown = null;
       try {
         json = JSON.parse(tauriResponse.body_text);
-      } catch {}
+      } catch {
+        // Ignore JSON parse errors - json will remain null
+      }
 
       return {
         status: tauriResponse.status,
@@ -30,6 +34,8 @@ class TauriHttpClient implements HttpClient {
         headers: tauriResponse.headers,
         bodyText: tauriResponse.body_text,
         bodyJson: json,
+        responseTimeMs: tauriResponse.response_time_ms,
+        responseSizeBytes: tauriResponse.response_size_bytes,
       };
     } catch (error) {
       const errorMsg =

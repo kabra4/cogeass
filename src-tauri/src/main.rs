@@ -13,6 +13,8 @@ struct BackendResponse {
     status_text: String,
     headers: HashMap<String, String>,
     body_text: String,
+    response_time_ms: u64,
+    response_size_bytes: usize,
 }
 
 #[tauri::command]
@@ -59,6 +61,9 @@ async fn make_request(
         request_builder = request_builder.body(body_content);
     }
 
+    // Start timing the request
+    let start_time = std::time::Instant::now();
+
     // Send the request and await the response
     let response = request_builder.send().await.map_err(|e| e.to_string())?;
 
@@ -77,8 +82,17 @@ async fn make_request(
         response_headers.insert(key.as_str().to_string(), value_str);
     }
 
-    // Extract the response body as text
-    let body_text = response.text().await.map_err(|e| e.to_string())?;
+    // Extract the response body as raw bytes first
+    let body_bytes = response.bytes().await.map_err(|e| e.to_string())?;
+
+    // Calculate response time in milliseconds
+    let response_time_ms = start_time.elapsed().as_millis() as u64;
+
+    // Calculate response size in bytes (raw payload size)
+    let response_size_bytes = body_bytes.len();
+
+    // Convert body to text for the frontend
+    let body_text = String::from_utf8_lossy(&body_bytes).to_string();
 
     // Construct and return the response object for the frontend
     Ok(BackendResponse {
@@ -86,6 +100,8 @@ async fn make_request(
         status_text,
         headers: response_headers,
         body_text,
+        response_time_ms,
+        response_size_bytes,
     })
 }
 

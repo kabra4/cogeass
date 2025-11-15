@@ -206,7 +206,6 @@ export function useRequestBuilderState() {
     };
 
     try {
-      const startTime = performance.now();
       const r = await send({
         baseUrl: resolvedData.baseUrl,
         path,
@@ -219,11 +218,6 @@ export function useRequestBuilderState() {
         timeoutMs: 600000,
         signal: abortController.signal,
       });
-      const endTime = performance.now();
-      const responseTimeMs = Math.round(endTime - startTime);
-
-      // Calculate response size in bytes (UTF-8 encoding)
-      const responseSizeBytes = new TextEncoder().encode(r.bodyText).length;
 
       // Only set response if this request wasn't aborted
       if (!abortController.signal.aborted) {
@@ -234,8 +228,8 @@ export function useRequestBuilderState() {
           bodyText: r.bodyText,
           bodyJson: r.bodyJson,
           timestamp: Date.now(),
-          responseTimeMs,
-          responseSizeBytes,
+          responseTimeMs: r.responseTimeMs,
+          responseSizeBytes: r.responseSizeBytes,
         });
 
         // Add to history after successful request

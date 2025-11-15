@@ -5,6 +5,8 @@ export interface HttpResponse {
   headers: Record<string, string>;
   bodyText: string;
   bodyJson: unknown;
+  responseTimeMs?: number;
+  responseSizeBytes?: number;
 }
 
 export interface HttpClient {

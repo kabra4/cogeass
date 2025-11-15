@@ -8,7 +8,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 
-type TabType = "body" | "curl" | "response";
+type TabType = "body" | "curl" | "response" | "headers";
 
 export default function RequestBuilder() {
   const [activePreviewTab, setActivePreviewTab] = useState<TabType>("body");

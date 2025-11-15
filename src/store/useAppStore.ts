@@ -10,7 +10,6 @@ import { createHistorySlice } from "./historySlice";
 import type {
   AppState,
   Workspace,
-  OperationState,
   AuthState,
   Environment,
   HistoryItem,
@@ -30,12 +29,24 @@ export const useAppStore = create<AppState>()(
     {
       name: "cogeass-storage",
       // Persist only workspace container; runtime (spec, ops) are derived, not persisted.
-      partialize: (state) => ({
-        workspaces: state.workspaces,
-        workspaceOrder: state.workspaceOrder,
-        activeWorkspaceId: state.activeWorkspaceId,
-        // operationState is NOT persisted here - it's in IndexedDB now
-      }),
+      partialize: (state) => {
+        // Deep copy workspaces but exclude operationState from each workspace
+        const workspacesCopy: Record<string, Workspace> = {};
+        for (const [id, ws] of Object.entries(state.workspaces)) {
+          workspacesCopy[id] = {
+            ...ws,
+            data: {
+              ...ws.data,
+              operationState: {}, // Don't persist operationState to localStorage
+            },
+          };
+        }
+        return {
+          workspaces: workspacesCopy,
+          workspaceOrder: state.workspaceOrder,
+          activeWorkspaceId: state.activeWorkspaceId,
+        };
+      },
       merge: (persistedState, currentState) => {
         // Migration: convert legacy single-workspace persisted data into first workspace
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,8 +72,6 @@ export const useAppStore = create<AppState>()(
         // Legacy fields - use any for simplicity in migration
         const legacySpecId = (persisted?.specId as string) ?? null;
         const legacyBaseUrl = (persisted?.baseUrl as string) ?? "";
-        const legacyOperationState =
-          (persisted?.operationState as Record<string, OperationState>) ?? {};
         const legacySelected = persisted?.selected ?? null;
         const legacyAuth = (persisted?.auth as AuthState) ?? {
           schemes: {},
@@ -129,7 +138,7 @@ export const useAppStore = create<AppState>()(
               baseUrl: legacyBaseUrl,
               globalHeaders:
                 (persisted?.globalHeaders as Record<string, string>) ?? {},
-              operationState: legacyOperationState,
+              operationState: {}, // Legacy operationState not loaded; will be in IndexedDB
               selectedKey: legacySelectedKey,
               auth: legacyAuth,
               environments: normalizedEnvs,

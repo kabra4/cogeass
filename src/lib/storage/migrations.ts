@@ -2,6 +2,65 @@
 import { operationRepository } from "./OperationRepository";
 
 /**
+ * Emergency cleanup to remove operationState from localStorage when quota is exceeded
+ * This is a quick fix that removes large response data without migrating to IndexedDB
+ */
+export function cleanupLocalStorageOperationState(): void {
+  try {
+    const stored = localStorage.getItem("cogeass-storage");
+    if (!stored) {
+      return;
+    }
+
+    const data = JSON.parse(stored);
+
+    // Check if this has workspaces
+    if (!data.workspaces || typeof data.workspaces !== "object") {
+      return;
+    }
+
+    let cleaned = false;
+
+    // For each workspace, empty the operationState
+    for (const [wsId, ws] of Object.entries(data.workspaces)) {
+      if (!ws || typeof ws !== "object") continue;
+
+      const workspace = ws as {
+        data?: { operationState?: Record<string, unknown> };
+      };
+
+      if (workspace.data && workspace.data.operationState) {
+        const opStateKeys = Object.keys(workspace.data.operationState);
+        if (opStateKeys.length > 0) {
+          workspace.data.operationState = {};
+          cleaned = true;
+          console.log(
+            `Cleaned operationState from workspace ${wsId} (${opStateKeys.length} operations)`
+          );
+        }
+      }
+    }
+
+    if (cleaned) {
+      // Save cleaned up data back to localStorage
+      localStorage.setItem("cogeass-storage", JSON.stringify(data));
+      console.log(
+        "localStorage cleaned - operationState removed to free up space"
+      );
+    }
+  } catch (error) {
+    console.error("Failed to cleanup localStorage:", error);
+    // If cleanup fails, try to at least clear the entire storage as last resort
+    try {
+      localStorage.removeItem("cogeass-storage");
+      console.warn("Removed entire cogeass-storage due to cleanup failure");
+    } catch (e) {
+      console.error("Could not remove storage:", e);
+    }
+  }
+}
+
+/**
  * Migrate operation state data from localStorage (Zustand persist) to IndexedDB
  * This reads the old format and saves it to the new IndexedDB structure
  */
@@ -133,5 +192,18 @@ export async function runMigrationIfNeeded(): Promise<void> {
     console.error("Migration failed:", error);
     // Don't mark as completed if it failed
     throw error;
+  }
+}
+
+/**
+ * Safe cleanup that runs on app startup to ensure localStorage is not bloated
+ * This is called after migration to ensure operationState is removed
+ */
+export function ensureLocalStorageCleanup(): void {
+  try {
+    // Always cleanup operationState from localStorage, regardless of migration status
+    cleanupLocalStorageOperationState();
+  } catch (error) {
+    console.error("Cleanup check failed:", error);
   }
 }

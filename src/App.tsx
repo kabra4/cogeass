@@ -25,7 +25,10 @@ import HeadersPage from "@/pages/HeadersPage";
 import AuthPage from "@/pages/AuthPage";
 import { EnvironmentSelector } from "@/components/EnvironmentSelector";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
-import { runMigrationIfNeeded } from "@/lib/storage/migrations";
+import {
+  runMigrationIfNeeded,
+  ensureLocalStorageCleanup,
+} from "@/lib/storage/migrations";
 import { operationRepository } from "@/lib/storage/OperationRepository";
 
 export default function App() {
@@ -55,9 +58,16 @@ export default function App() {
     const runMigration = async () => {
       try {
         await runMigrationIfNeeded();
+        // Always ensure localStorage is cleaned up after migration
+        ensureLocalStorageCleanup();
       } catch (error) {
         console.error("Migration failed:", error);
-        // Don't block the app if migration fails
+        // Even if migration fails, try to cleanup localStorage to prevent quota errors
+        try {
+          ensureLocalStorageCleanup();
+        } catch (cleanupError) {
+          console.error("Cleanup also failed:", cleanupError);
+        }
       }
     };
     runMigration();

@@ -53,26 +53,7 @@ export const createRequestSlice: StateCreator<
     };
     set(nextState);
 
-    const wsId = get().activeWorkspaceId;
-    if (wsId) {
-      const ws = get().workspaces[wsId];
-      if (ws) {
-        const wsOp = ws.data.operationState[key] || {};
-        const updated: typeof ws = {
-          ...ws,
-          data: {
-            ...ws.data,
-            operationState: {
-              ...ws.data.operationState,
-              [key]: { ...wsOp, ...data },
-            },
-          },
-        };
-        set((state) => ({
-          workspaces: { ...state.workspaces, [wsId]: updated },
-        }));
-      }
-    }
+    // Data will be persisted to IndexedDB via debounced call in useRequestBuilderState
   },
   setOperationResponse: (key, response) => {
     const currentData = get().operationState[key] || {};
@@ -89,29 +70,7 @@ export const createRequestSlice: StateCreator<
       },
     });
 
-    // Also persist to workspace
-    const wsId = get().activeWorkspaceId;
-    if (wsId) {
-      const ws = get().workspaces[wsId];
-      if (ws) {
-        const wsOp = ws.data.operationState[key] || {};
-        const updatedWs: typeof ws = {
-          ...ws,
-          data: {
-            ...ws.data,
-            operationState: {
-              ...ws.data.operationState,
-              [key]: { ...wsOp, response, lastModified: Date.now() },
-            },
-          },
-        };
-        set((state) => ({
-          workspaces: { ...state.workspaces, [wsId]: updatedWs },
-        }));
-      }
-    }
-
-    // Save to IndexedDB asynchronously
+    // Save to IndexedDB asynchronously (no localStorage persistence to avoid quota errors)
     get().persistOperationToDB(key);
   },
   clearOperationResponse: (key) => {
@@ -128,33 +87,7 @@ export const createRequestSlice: StateCreator<
         },
       });
 
-      // Also clear from workspace
-      const wsId = get().activeWorkspaceId;
-      if (wsId) {
-        const ws = get().workspaces[wsId];
-        if (ws) {
-          const wsOp = ws.data.operationState[key];
-          if (wsOp) {
-            const updatedOp = { ...wsOp };
-            delete updatedOp.response;
-            const updatedWs: typeof ws = {
-              ...ws,
-              data: {
-                ...ws.data,
-                operationState: {
-                  ...ws.data.operationState,
-                  [key]: updatedOp,
-                },
-              },
-            };
-            set((state) => ({
-              workspaces: { ...state.workspaces, [wsId]: updatedWs },
-            }));
-          }
-        }
-      }
-
-      // Update IndexedDB
+      // Update IndexedDB (no localStorage persistence to avoid quota errors)
       get().persistOperationToDB(key);
     }
   },
@@ -182,23 +115,7 @@ export const createRequestSlice: StateCreator<
           },
         });
 
-        // Also update workspace data
-        const ws = get().workspaces[wsId];
-        if (ws) {
-          const updatedWs: typeof ws = {
-            ...ws,
-            data: {
-              ...ws.data,
-              operationState: {
-                ...ws.data.operationState,
-                [key]: opState,
-              },
-            },
-          };
-          set((state) => ({
-            workspaces: { ...state.workspaces, [wsId]: updatedWs },
-          }));
-        }
+        // No need to sync to workspace - operation data is only stored in IndexedDB
       }
     } catch (error) {
       console.error("Failed to load operation from IndexedDB:", error);

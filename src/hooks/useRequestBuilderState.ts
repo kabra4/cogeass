@@ -270,6 +270,8 @@ export function useRequestBuilderState() {
     appliedAuth,
     operationKey,
     setOperationResponse,
+    selected,
+    addToHistory,
   ]);
 
   const handleCancel = useCallback(() => {

@@ -18,7 +18,7 @@ tauri-build = { version = "1.0.0", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "1.0.0", features = ["window-all"] }
-reqwest = "0.11"
+reqwest = { version = "0.11", features = ["gzip", "deflate", "brotli"] }
 tokio = { version = "1", features = ["full"] }
 
 [features]

@@ -38,6 +38,7 @@ async fn make_request(
         .timeout(std::time::Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
+
     let method = method.to_uppercase();
 
     // Build the request based on the method
@@ -51,7 +52,7 @@ async fn make_request(
         _ => return Err(format!("Unsupported HTTP method: {}", method)),
     };
 
-    // Add headers to the request
+    // Add all headers to the request including Accept-Encoding
     for (key, value) in headers {
         request_builder = request_builder.header(&key, value);
     }
@@ -85,15 +86,52 @@ async fn make_request(
     // Calculate response time in milliseconds
     let response_time_ms = start_time.elapsed().as_millis() as u64;
 
-    // Extract the response body as bytes (already decompressed by reqwest)
-    // reqwest will automatically decode gzip/deflate/brotli with the enabled features
+    // Get the raw response body bytes (compressed if Content-Encoding is present)
     let body_bytes = response.bytes().await.map_err(|e| e.to_string())?;
 
-    // Calculate response size in bytes (decompressed size)
+    // Track the compressed size (what was actually transmitted over the network)
     let response_size_bytes = body_bytes.len();
 
-    // Convert bytes to text
-    let body_text = String::from_utf8_lossy(&body_bytes).to_string();
+    // Check if the response is compressed by looking at the headers we captured
+    let content_encoding = response_headers.get("content-encoding");
+
+    // Decompress if necessary
+    let body_text = if let Some(encoding) = content_encoding {
+        let decompressed_bytes = match encoding.to_lowercase().as_str() {
+            "gzip" => {
+                use std::io::Read;
+                let mut decoder = flate2::read::GzDecoder::new(&body_bytes[..]);
+                let mut decompressed = Vec::new();
+                decoder
+                    .read_to_end(&mut decompressed)
+                    .map_err(|e| e.to_string())?;
+                decompressed
+            }
+            "deflate" => {
+                use std::io::Read;
+                let mut decoder = flate2::read::DeflateDecoder::new(&body_bytes[..]);
+                let mut decompressed = Vec::new();
+                decoder
+                    .read_to_end(&mut decompressed)
+                    .map_err(|e| e.to_string())?;
+                decompressed
+            }
+            "br" => {
+                use std::io::Read;
+                let mut decoder = brotli::Decompressor::new(&body_bytes[..], 4096);
+                let mut decompressed = Vec::new();
+                decoder
+                    .read_to_end(&mut decompressed)
+                    .map_err(|e| e.to_string())?;
+                decompressed
+            }
+            _ => body_bytes.to_vec(),
+        };
+        String::from_utf8_lossy(&decompressed_bytes).to_string()
+    } else {
+        // No compression, use original bytes
+        String::from_utf8_lossy(&body_bytes).to_string()
+    };
 
     // Construct and return the response object for the frontend
     Ok(BackendResponse {

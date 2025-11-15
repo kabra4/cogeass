@@ -16,7 +16,12 @@ const newAuthState = (): AuthState => ({
 const emptyWorkspaceData = (): WorkspaceData => ({
   baseUrl: "",
   operationState: {},
-  globalHeaders: {},
+  globalHeaders: {
+    "User-Agent": "Plyt/1.0",
+    Accept: "*/*",
+    "Accept-Encoding": "gzip, deflate, br",
+    Connection: "keep-alive",
+  },
   selectedKey: null,
   auth: newAuthState(),
   environments: {},

@@ -10,7 +10,7 @@ type TauriResponse = {
 };
 
 class TauriHttpClient implements HttpClient {
-  async send(parts: Parameters<HttpClient['send']>[0]): Promise<HttpResponse> {
+  async send(parts: Parameters<HttpClient["send"]>[0]): Promise<HttpResponse> {
     try {
       const tauriResponse = await invoke<TauriResponse>("make_request", {
         method: parts.method,
@@ -32,10 +32,14 @@ class TauriHttpClient implements HttpClient {
         bodyJson: json,
       };
     } catch (error) {
-      const errorMsg = typeof error === "string" ? error : "An unknown error occurred";
+      const errorMsg =
+        typeof error === "string" ? error : "An unknown error occurred";
       return {
-        status: 500, statusText: "Tauri Command Error", headers: {},
-        bodyText: errorMsg, bodyJson: { error: errorMsg },
+        status: 500,
+        statusText: "Tauri Command Error",
+        headers: {},
+        bodyText: errorMsg,
+        bodyJson: { error: errorMsg },
       };
     }
   }

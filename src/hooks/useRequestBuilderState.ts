@@ -222,6 +222,9 @@ export function useRequestBuilderState() {
       const endTime = performance.now();
       const responseTimeMs = Math.round(endTime - startTime);
 
+      // Calculate response size in bytes (UTF-8 encoding)
+      const responseSizeBytes = new TextEncoder().encode(r.bodyText).length;
+
       // Only set response if this request wasn't aborted
       if (!abortController.signal.aborted) {
         setOperationResponse(operationKey, {
@@ -232,6 +235,7 @@ export function useRequestBuilderState() {
           bodyJson: r.bodyJson,
           timestamp: Date.now(),
           responseTimeMs,
+          responseSizeBytes,
         });
 
         // Add to history after successful request

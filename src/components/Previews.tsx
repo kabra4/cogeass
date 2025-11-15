@@ -37,6 +37,7 @@ interface PreviewsProps {
     bodyJson: unknown;
     timestamp: number;
     responseTimeMs?: number;
+    responseSizeBytes?: number;
   } | null;
   isLoading?: boolean;
   activeTab?: TabType;
@@ -56,6 +57,16 @@ function formatResponseTime(ms: number): string {
     return `${(ms / 1000).toFixed(2)}s`;
   }
   return `${ms}ms`;
+}
+
+function formatResponseSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  }
+  return `${bytes} B`;
 }
 
 export default function Previews({
@@ -188,6 +199,11 @@ export default function Previews({
                     {resp.responseTimeMs !== undefined && (
                       <span className="text-foreground">
                         • {formatResponseTime(resp.responseTimeMs)}
+                      </span>
+                    )}
+                    {resp.responseSizeBytes !== undefined && (
+                      <span className="text-foreground">
+                        • {formatResponseSize(resp.responseSizeBytes)}
                       </span>
                     )}
                   </>

@@ -37,6 +37,7 @@ export type OperationState = {
     bodyJson: unknown;
     timestamp: number;
     responseTimeMs?: number;
+    responseSizeBytes?: number;
   };
   // Metadata
   lastModified?: number;

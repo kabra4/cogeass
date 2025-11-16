@@ -1,5 +1,5 @@
 // src/lib/http/TauriHttpClient.ts
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import type { HttpClient, HttpResponse } from "./HttpClient";
 
 type TauriResponse = {

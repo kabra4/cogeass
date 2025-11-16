@@ -2,13 +2,14 @@ import SwaggerParser from "@apidevtools/swagger-parser";
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 import converter from "swagger2openapi";
 import { specRepository } from "@/lib/storage/SpecRepository";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import yaml from "js-yaml";
 
 export type DerefSpec = OpenAPIV3.Document | OpenAPIV3_1.Document;
 
 const isTauri = () =>
-  typeof window !== "undefined" && (window as any).__TAURI__ !== undefined;
+  typeof window !== "undefined" &&
+  (window as any).__TAURI_INTERNALS__ !== undefined;
 
 /**
  * Loads and processes an OpenAPI specification from a URL or File object.

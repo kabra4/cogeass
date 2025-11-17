@@ -5,6 +5,10 @@ import type {
   Workspace,
   WorkspaceData,
   AuthState,
+  SecurityScheme,
+  HistoryItem,
+  OperationRef,
+  OperationState,
 } from "./types";
 import * as sqlite from "@/lib/storage/sqliteRepository";
 import type { DbWorkspace } from "@/types/backend";
@@ -54,8 +58,12 @@ export const createWorkspaceSlice: StateCreator<
 
   initializeAppState: async () => {
     try {
+      console.log("Loading initial data from SQLite...");
       // Load initial data from SQLite
       const data = await sqlite.loadInitialData();
+      console.log("Initial data loaded:", {
+        workspaceCount: data.workspaces.length,
+      });
 
       if (data.workspaces.length === 0) {
         // No workspaces exist, create a default one
@@ -69,6 +77,7 @@ export const createWorkspaceSlice: StateCreator<
       const workspaceOrder: string[] = [];
 
       for (const dbWs of data.workspaces) {
+        console.log("Loading workspace:", dbWs.id, dbWs.name);
         workspaces[dbWs.id] = {
           id: dbWs.id,
           name: dbWs.name,
@@ -81,6 +90,7 @@ export const createWorkspaceSlice: StateCreator<
 
       // Set the first workspace as active by default
       const activeWorkspaceId = workspaceOrder[0] || null;
+      console.log("Setting active workspace:", activeWorkspaceId);
 
       set({
         workspaces,
@@ -90,17 +100,32 @@ export const createWorkspaceSlice: StateCreator<
 
       // Load the active workspace data
       if (activeWorkspaceId) {
+        console.log("Loading full workspace data for:", activeWorkspaceId);
         await get().setActiveWorkspace(activeWorkspaceId);
       }
 
-      console.log("App state initialized from SQLite", {
+      console.log("App state initialized from SQLite successfully", {
         workspaceCount: workspaceOrder.length,
         activeWorkspaceId,
       });
     } catch (error) {
       console.error("Failed to initialize app state from database:", error);
+      console.error(
+        "Error details:",
+        error instanceof Error ? error.message : String(error)
+      );
+      console.error(
+        "Error stack:",
+        error instanceof Error ? error.stack : "N/A"
+      );
       // Fallback: create a default workspace
-      get().createWorkspace("Workspace 1");
+      console.log("Attempting fallback: creating default workspace");
+      try {
+        get().createWorkspace("Workspace 1");
+      } catch (fallbackError) {
+        console.error("Fallback also failed:", fallbackError);
+        throw error; // Re-throw original error
+      }
     }
   },
 
@@ -238,18 +263,24 @@ export const createWorkspaceSlice: StateCreator<
   },
 
   setActiveWorkspace: async (id) => {
-    if (id === null) return;
+    if (id === null) {
+      console.warn("setActiveWorkspace called with null id");
+      return;
+    }
 
+    console.log("Setting active workspace:", id);
     // Update activeWorkspaceId immediately for UI
     set({ activeWorkspaceId: id });
 
     try {
       // Fetch full workspace data from SQLite
+      console.log("Fetching full workspace data from SQLite...");
       const data = await sqlite.getFullWorkspaceData(id);
       if (!data) {
-        console.error("Workspace not found:", id);
+        console.error("Workspace not found in database:", id);
         return;
       }
+      console.log("Full workspace data fetched successfully");
 
       // Note: Spec parsing is handled separately when operations are loaded
 
@@ -298,7 +329,7 @@ export const createWorkspaceSlice: StateCreator<
       }
 
       // Build auth state
-      const authSchemes: Record<string, any> = {};
+      const authSchemes: Record<string, SecurityScheme> = {};
       const authValues: Record<string, Record<string, string>> = {};
       const authEnvironmentValues: Record<
         string,
@@ -326,23 +357,19 @@ export const createWorkspaceSlice: StateCreator<
       }
 
       // Build history
-      const history: Array<{
-        operationRef: any;
-        timestamp: number;
-        key: string;
-      }> = [];
+      const history: HistoryItem[] = [];
       // Note: We'll need to reconstruct operationRef from operation_key
       // For now, keep history minimal until we load operations
       for (const historyEntry of data.history) {
         history.push({
-          operationRef: null as any, // Will be reconstructed when operations are loaded
+          operationRef: null as unknown as OperationRef, // Will be reconstructed when operations are loaded
           timestamp: historyEntry.timestamp,
           key: historyEntry.operation_key,
         });
       }
 
       // Build operation state map
-      const operationState: Record<string, any> = {};
+      const operationState: Record<string, OperationState> = {};
       // Operation states are loaded on-demand, not during workspace switch
 
       // Update the workspace in the store

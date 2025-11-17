@@ -12,7 +12,10 @@ import { Clock } from "lucide-react";
 export default function HistoryPanel() {
   const { history, setSelected, selected } = useAppStore();
 
-  if (history.length === 0) {
+  // Filter out items with null operationRef (can happen when loading from database)
+  const validHistory = history.filter((item) => item.operationRef !== null);
+
+  if (validHistory.length === 0) {
     return null;
   }
 
@@ -33,7 +36,7 @@ export default function HistoryPanel() {
       </div>
       <TooltipProvider delayDuration={0}>
         <div className="flex flex-col gap-1">
-          {history.map((item) => {
+          {validHistory.map((item) => {
             const op = item.operationRef;
             const isActive =
               selected &&

@@ -1,7 +1,7 @@
 import SwaggerParser from "@apidevtools/swagger-parser";
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 import converter from "swagger2openapi";
-import { specRepository } from "@/lib/storage/SpecRepository";
+import { saveSpec } from "@/lib/storage/sqliteRepository";
 import { invoke } from "@tauri-apps/api/core";
 import yaml from "js-yaml";
 
@@ -62,7 +62,7 @@ export async function loadSpec(
         ? input
         : `${input.name}-${input.size}-${input.lastModified}`;
 
-    await specRepository.save(specId, dereferencedDoc);
+    await saveSpec(specId, JSON.stringify(dereferencedDoc));
 
     return { spec: dereferencedDoc, id: specId };
   } catch (error) {

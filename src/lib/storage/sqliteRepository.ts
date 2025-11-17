@@ -28,7 +28,26 @@ let db: Database | null = null;
  */
 export async function initDatabase(): Promise<void> {
   if (!db) {
-    db = await Database.load("sqlite:cogeass.db");
+    try {
+      console.log("Loading SQLite database: sqlite:cogeass.db");
+      db = await Database.load("sqlite:cogeass.db");
+      console.log("SQLite database loaded successfully");
+
+      // Test the connection by running a simple query
+      await db.execute("SELECT 1");
+      console.log("Database connection verified");
+    } catch (error) {
+      console.error("Failed to initialize SQLite database:", error);
+      console.error(
+        "Error details:",
+        error instanceof Error ? error.message : String(error)
+      );
+      throw new Error(
+        `Database initialization failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
 }
 
@@ -52,10 +71,20 @@ function getDb(): Database {
  * Returns the list of all workspaces for the workspace selector.
  */
 export async function loadInitialData(): Promise<InitialData> {
-  const workspaces = await getDb().select<DbWorkspace[]>(
-    "SELECT * FROM workspaces ORDER BY sort_order ASC"
-  );
-  return { workspaces };
+  try {
+    console.log("Querying workspaces table...");
+    const workspaces = await getDb().select<DbWorkspace[]>(
+      "SELECT * FROM workspaces ORDER BY sort_order ASC"
+    );
+    console.log(`Found ${workspaces.length} workspaces`);
+    return { workspaces };
+  } catch (error) {
+    console.error("Failed to load initial data:", error);
+    console.error(
+      "This might indicate the database tables haven't been created yet"
+    );
+    throw error;
+  }
 }
 
 // ============================================================================
@@ -115,75 +144,98 @@ export async function deleteWorkspace(id: string): Promise<void> {
 export async function getFullWorkspaceData(
   workspaceId: string
 ): Promise<FullWorkspaceData | null> {
-  // Fetch workspace details
-  const workspaces = await getDb().select<DbWorkspace[]>(
-    "SELECT * FROM workspaces WHERE id = ?",
-    [workspaceId]
-  );
+  try {
+    console.log(`Fetching workspace data for: ${workspaceId}`);
 
-  if (workspaces.length === 0) {
-    return null;
-  }
-
-  const workspace = workspaces[0];
-
-  // Fetch spec if active_spec_id is set
-  let spec: DbSpec | null = null;
-  if (workspace.active_spec_id) {
-    const specs = await getDb().select<DbSpec[]>(
-      "SELECT * FROM specs WHERE id = ?",
-      [workspace.active_spec_id]
+    // Fetch workspace details
+    const workspaces = await getDb().select<DbWorkspace[]>(
+      "SELECT * FROM workspaces WHERE id = ?",
+      [workspaceId]
     );
-    spec = specs.length > 0 ? specs[0] : null;
-  }
 
-  // Fetch all related data in parallel
-  const [
-    environments,
-    variableKeys,
-    variableValues,
-    globalHeaders,
-    authValues,
-    history,
-  ] = await Promise.all([
-    getDb().select<DbEnvironment[]>(
-      "SELECT * FROM environments WHERE workspace_id = ?",
-      [workspaceId]
-    ),
-    getDb().select<DbVariableKey[]>(
-      "SELECT * FROM workspace_variable_keys WHERE workspace_id = ? ORDER BY key_name ASC",
-      [workspaceId]
-    ),
-    getDb().select<DbVariableValue[]>(
-      `SELECT evv.* FROM environment_variable_values evv
+    if (workspaces.length === 0) {
+      console.warn(`Workspace not found: ${workspaceId}`);
+      return null;
+    }
+
+    const workspace = workspaces[0];
+    console.log(`Workspace found: ${workspace.name}`);
+
+    // Fetch spec if active_spec_id is set
+    let spec: DbSpec | null = null;
+    if (workspace.active_spec_id) {
+      const specs = await getDb().select<DbSpec[]>(
+        "SELECT * FROM specs WHERE id = ?",
+        [workspace.active_spec_id]
+      );
+      spec = specs.length > 0 ? specs[0] : null;
+    }
+
+    // Fetch all related data in parallel
+    const [
+      environments,
+      variableKeys,
+      variableValues,
+      globalHeaders,
+      authValues,
+      history,
+    ] = await Promise.all([
+      getDb().select<DbEnvironment[]>(
+        "SELECT * FROM environments WHERE workspace_id = ?",
+        [workspaceId]
+      ),
+      getDb().select<DbVariableKey[]>(
+        "SELECT * FROM workspace_variable_keys WHERE workspace_id = ? ORDER BY key_name ASC",
+        [workspaceId]
+      ),
+      getDb().select<DbVariableValue[]>(
+        `SELECT evv.* FROM environment_variable_values evv
        INNER JOIN environments e ON evv.environment_id = e.id
        WHERE e.workspace_id = ?`,
-      [workspaceId]
-    ),
-    getDb().select<DbGlobalHeader[]>(
-      "SELECT * FROM global_headers WHERE workspace_id = ?",
-      [workspaceId]
-    ),
-    getDb().select<DbAuthValue[]>(
-      "SELECT * FROM auth_values WHERE workspace_id = ?",
-      [workspaceId]
-    ),
-    getDb().select<DbHistoryEntry[]>(
-      "SELECT * FROM history WHERE workspace_id = ? ORDER BY timestamp DESC LIMIT 50",
-      [workspaceId]
-    ),
-  ]);
+        [workspaceId]
+      ),
+      getDb().select<DbGlobalHeader[]>(
+        "SELECT * FROM global_headers WHERE workspace_id = ?",
+        [workspaceId]
+      ),
+      getDb().select<DbAuthValue[]>(
+        "SELECT * FROM auth_values WHERE workspace_id = ?",
+        [workspaceId]
+      ),
+      getDb().select<DbHistoryEntry[]>(
+        "SELECT * FROM history WHERE workspace_id = ? ORDER BY timestamp DESC LIMIT 50",
+        [workspaceId]
+      ),
+    ]);
 
-  return {
-    workspace,
-    spec,
-    environments,
-    variableKeys,
-    variableValues,
-    globalHeaders,
-    authValues,
-    history,
-  };
+    console.log(`Loaded workspace data:`, {
+      workspaceName: workspace.name,
+      hasSpec: !!spec,
+      environmentCount: environments.length,
+      variableKeyCount: variableKeys.length,
+      variableValueCount: variableValues.length,
+      globalHeaderCount: globalHeaders.length,
+      authValueCount: authValues.length,
+      historyCount: history.length,
+    });
+
+    return {
+      workspace,
+      spec,
+      environments,
+      variableKeys,
+      variableValues,
+      globalHeaders,
+      authValues,
+      history,
+    };
+  } catch (error) {
+    console.error(
+      `Failed to get full workspace data for ${workspaceId}:`,
+      error
+    );
+    throw error;
+  }
 }
 
 // ============================================================================

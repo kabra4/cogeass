@@ -74,6 +74,7 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
 
   setOperations: (ops) => {
     set({ operations: ops });
+
     // Attempt to restore selected from selectedKey for active workspace
     const selectedKey = get().selectedKey;
     if (selectedKey) {
@@ -83,6 +84,32 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
       );
       if (found) {
         set({ selected: found });
+      }
+    }
+
+    // Reconstruct history operationRefs from operation keys
+    const history = get().history;
+    if (history.length > 0) {
+      const reconstructedHistory = history.map((item) => {
+        if (item.operationRef === null) {
+          // Find matching operation by key
+          const op = ops.find(
+            (o) =>
+              `${o.method}:${o.path}`.toLowerCase() === item.key.toLowerCase()
+          );
+          return op ? { ...item, operationRef: op } : item;
+        }
+        return item;
+      });
+
+      // Only update if we actually reconstructed some items
+      const hasChanges = reconstructedHistory.some(
+        (item, idx) => item.operationRef !== history[idx].operationRef
+      );
+
+      if (hasChanges) {
+        set({ history: reconstructedHistory });
+        console.log("Reconstructed history operationRefs from operations");
       }
     }
   },

@@ -52,6 +52,7 @@ export function WorkspaceSelector() {
       <DropdownMenuContent align="start" className="min-w-[260px]">
         {workspaceOrder.map((id) => {
           const ws = workspaces[id];
+          if (!ws) return null;
           const isActive = id === activeWorkspaceId;
           return (
             <DropdownMenuItem

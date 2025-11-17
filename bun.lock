@@ -24,13 +24,13 @@
         "@rjsf/validator-ajv8": "^5.24.13",
         "@tailwindcss/vite": "^4.1.14",
         "@tauri-apps/api": "^2.0.0",
+        "@tauri-apps/plugin-sql": "^2.3.1",
         "ajv": "^8.17.1",
         "ajv-formats": "^3.0.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "curl-generator": "^0.4.2",
         "httpsnippet": "^3.0.1",
-        "idb": "^8.0.3",
         "js-yaml": "^4.1.0",
         "lucide-react": "^0.544.0",
         "next-themes": "^0.4.6",
@@ -418,6 +418,8 @@
 
     "@tauri-apps/cli-win32-x64-msvc": ["@tauri-apps/cli-win32-x64-msvc@2.9.4", "", { "os": "win32", "cpu": "x64" }, "sha512-EdYd4c9wGvtPB95kqtEyY+bUR+k4kRw3IA30mAQ1jPH6z57AftT8q84qwv0RDp6kkEqOBKxeInKfqi4BESYuqg=="],
 
+    "@tauri-apps/plugin-sql": ["@tauri-apps/plugin-sql@2.3.1", "", { "dependencies": { "@tauri-apps/api": "^2.8.0" } }, "sha512-iNgHnFIR+jRkx9INKVKepzMlxXtNkJUaWuhagFjT4dOttPaNyRnVHgwTjpqZhyVjiklDh2UdEPAJkQKiCPAekw=="],
+
     "@types/babel__core": ["@types/babel__core@7.20.5", "", { "dependencies": { "@babel/parser": "^7.20.7", "@babel/types": "^7.20.7", "@types/babel__generator": "*", "@types/babel__template": "*", "@types/babel__traverse": "*" } }, "sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA=="],
 
     "@types/babel__generator": ["@types/babel__generator@7.27.0", "", { "dependencies": { "@babel/types": "^7.0.0" } }, "sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg=="],
@@ -749,8 +751,6 @@
     "https-browserify": ["https-browserify@1.0.0", "", {}, "sha512-J+FkSdyD+0mA0N+81tMotaRMfSL9SGi+xpD3T6YApKsc3bGSXJlfXri3VyFOeYkfLRQisDk1W+jIFFKBeUBbBg=="],
 
     "httpsnippet": ["httpsnippet@3.0.1", "", { "dependencies": { "chalk": "^4.1.2", "event-stream": "4.0.1", "form-data": "4.0.0", "har-schema": "^2.0.0", "stringify-object": "3.3.0", "yargs": "^17.4.0" }, "bin": { "httpsnippet": "bin/httpsnippet" } }, "sha512-RJbzVu9Gq97Ti76MPKAb9AknKbRluRbzOqswM2qgEW48QUShVEIuJjl43dZG5q0Upj2SZlKqzR6B6ah1q5znfg=="],
-
-    "idb": ["idb@8.0.3", "", {}, "sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg=="],
 
     "ieee754": ["ieee754@1.2.1", "", {}, "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=="],
 

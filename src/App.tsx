@@ -25,11 +25,7 @@ import HeadersPage from "@/pages/HeadersPage";
 import AuthPage from "@/pages/AuthPage";
 import { EnvironmentSelector } from "@/components/EnvironmentSelector";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
-import {
-  runMigrationIfNeeded,
-  ensureLocalStorageCleanup,
-} from "@/lib/storage/migrations";
-import { operationRepository } from "@/lib/storage/OperationRepository";
+import { initDatabase } from "@/lib/storage/sqliteRepository";
 
 export default function App() {
   const hasHydrated = useHasHydrated();
@@ -44,8 +40,8 @@ export default function App() {
     setActivePage,
     workspaces,
     activeWorkspaceId,
+    initializeAppState,
     createWorkspace,
-    __applyWorkspaceToRoot,
   } = useAppStore((s) => s);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const activeWorkspace =
@@ -53,66 +49,31 @@ export default function App() {
       ? workspaces[activeWorkspaceId]
       : null;
 
-  // Run migration on first load
+  // Initialize SQLite database on first load
   useEffect(() => {
-    const runMigration = async () => {
+    const init = async () => {
       try {
-        await runMigrationIfNeeded();
-        // Always ensure localStorage is cleaned up after migration
-        ensureLocalStorageCleanup();
+        await initDatabase();
+        console.log("SQLite database initialized successfully");
+        // Load workspaces from database
+        await initializeAppState();
       } catch (error) {
-        console.error("Migration failed:", error);
-        // Even if migration fails, try to cleanup localStorage to prevent quota errors
-        try {
-          ensureLocalStorageCleanup();
-        } catch (cleanupError) {
-          console.error("Cleanup also failed:", cleanupError);
-        }
+        console.error("Failed to initialize database:", error);
+        toast.error("Failed to initialize database");
       }
     };
-    runMigration();
-  }, []);
+    init();
+  }, [initializeAppState]);
 
-  // Periodic cleanup of old responses (older than 30 days)
-  useEffect(() => {
-    const cleanupOldResponses = async () => {
-      try {
-        const thirtyDaysAgo = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
-        const deleted = await operationRepository.cleanupOldResponses(
-          thirtyDaysAgo
-        );
-        if (deleted > 0) {
-          console.log(`Cleaned up ${deleted} old responses from IndexedDB`);
-        }
-      } catch (error) {
-        console.error("Failed to cleanup old responses:", error);
-      }
-    };
-
-    // Run cleanup on mount
-    cleanupOldResponses();
-
-    // Run cleanup daily
-    const cleanupInterval = setInterval(
-      cleanupOldResponses,
-      24 * 60 * 60 * 1000
-    );
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
-
+  // Note: Workspace initialization is now handled by initializeAppState()
+  // This effect is kept for backward compatibility but may not be needed
   useEffect(() => {
     if (!hasHydrated) return;
-    const ensureWorkspace = () => {
-      // Ensure at least one workspace exists
-      if (!activeWorkspaceId || !workspaces[activeWorkspaceId]) {
-        // This will also apply the workspace to root
-        createWorkspace("Workspace 1");
-      } else {
-        __applyWorkspaceToRoot(activeWorkspaceId);
-      }
-    };
-    ensureWorkspace();
+    // initializeAppState() should have already loaded workspaces
+    // Only create default if somehow we still don't have one
+    if (Object.keys(workspaces).length === 0 && !activeWorkspaceId) {
+      createWorkspace("Workspace 1");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated]);
 

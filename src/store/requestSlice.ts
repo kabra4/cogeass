@@ -1,6 +1,7 @@
 import type { StateCreator } from "zustand";
 import type { AppState, RequestSlice } from "./types";
-import { operationRepository } from "@/lib/storage/OperationRepository";
+import * as sqlite from "@/lib/storage/sqliteRepository";
+import type { DbWorkspace } from "@/types/backend";
 
 export const createRequestSlice: StateCreator<
   AppState,
@@ -11,12 +12,14 @@ export const createRequestSlice: StateCreator<
   baseUrl: "",
   globalHeaders: {},
   operationState: {},
+
   setBaseUrl: (url) => {
     set({ baseUrl: url });
     const wsId = get().activeWorkspaceId;
     if (wsId) {
       const ws = get().workspaces[wsId];
       if (ws) {
+        // Update in-memory workspace
         const updated = {
           ...ws,
           data: { ...ws.data, baseUrl: url },
@@ -24,15 +27,32 @@ export const createRequestSlice: StateCreator<
         set((state) => ({
           workspaces: { ...state.workspaces, [wsId]: updated },
         }));
+
+        // Persist to database
+        const dbWorkspace: DbWorkspace = {
+          id: ws.id,
+          name: ws.name,
+          active_spec_id: ws.specId,
+          active_environment_id: ws.data.activeEnvironmentId,
+          base_url: url,
+          selected_operation_key: ws.data.selectedKey || null,
+          sort_order: get().workspaceOrder.indexOf(wsId),
+        };
+
+        sqlite.updateWorkspace(dbWorkspace).catch((error) => {
+          console.error("Failed to update base URL in database:", error);
+        });
       }
     }
   },
+
   setGlobalHeaders: (headers) => {
     set({ globalHeaders: headers });
     const wsId = get().activeWorkspaceId;
     if (wsId) {
       const ws = get().workspaces[wsId];
       if (ws) {
+        // Update in-memory workspace
         const updated = {
           ...ws,
           data: { ...ws.data, globalHeaders: headers },
@@ -40,9 +60,15 @@ export const createRequestSlice: StateCreator<
         set((state) => ({
           workspaces: { ...state.workspaces, [wsId]: updated },
         }));
+
+        // Persist to database
+        sqlite.setAllGlobalHeaders(wsId, headers).catch((error) => {
+          console.error("Failed to update global headers in database:", error);
+        });
       }
     }
   },
+
   setOperationState: (key, data) => {
     const currentData = get().operationState[key] || {};
     const nextState = {
@@ -53,8 +79,9 @@ export const createRequestSlice: StateCreator<
     };
     set(nextState);
 
-    // Data will be persisted to IndexedDB via debounced call in useRequestBuilderState
+    // Data will be persisted to SQLite via debounced call in useRequestBuilderState
   },
+
   setOperationResponse: (key, response) => {
     const currentData = get().operationState[key] || {};
     const updated = {
@@ -70,9 +97,10 @@ export const createRequestSlice: StateCreator<
       },
     });
 
-    // Save to IndexedDB asynchronously (no localStorage persistence to avoid quota errors)
+    // Save to SQLite asynchronously
     get().persistOperationToDB(key);
   },
+
   clearOperationResponse: (key) => {
     const currentData = get().operationState[key];
     if (currentData?.response) {
@@ -87,25 +115,45 @@ export const createRequestSlice: StateCreator<
         },
       });
 
-      // Update IndexedDB (no localStorage persistence to avoid quota errors)
+      // Update SQLite
       get().persistOperationToDB(key);
     }
   },
+
   loadOperationFromDB: async (key) => {
     const wsId = get().activeWorkspaceId;
     if (!wsId) return;
 
     try {
-      const data = await operationRepository.getOperationData(wsId, key);
+      const data = await sqlite.getOperationState(wsId, key);
       if (data) {
+        // Parse form_data JSON
+        let formData;
+        try {
+          formData = JSON.parse(data.form_data);
+        } catch (error) {
+          console.error("Failed to parse operation form data:", error);
+          return;
+        }
+
+        // Parse response JSON if present
+        let response = undefined;
+        if (data.response) {
+          try {
+            response = JSON.parse(data.response);
+          } catch (error) {
+            console.error("Failed to parse operation response:", error);
+          }
+        }
+
         const opState = {
-          pathData: data.formData.pathData,
-          queryData: data.formData.queryData,
-          headerData: data.formData.headerData,
-          customHeaderData: data.formData.customHeaderData,
-          bodyData: data.formData.bodyData,
-          response: data.response,
-          lastModified: data.lastModified,
+          pathData: formData.pathData,
+          queryData: formData.queryData,
+          headerData: formData.headerData,
+          customHeaderData: formData.customHeaderData,
+          bodyData: formData.bodyData,
+          response,
+          lastModified: data.last_modified,
         };
 
         set({
@@ -114,13 +162,12 @@ export const createRequestSlice: StateCreator<
             [key]: opState,
           },
         });
-
-        // No need to sync to workspace - operation data is only stored in IndexedDB
       }
     } catch (error) {
-      console.error("Failed to load operation from IndexedDB:", error);
+      console.error("Failed to load operation from SQLite:", error);
     }
   },
+
   persistOperationToDB: async (key) => {
     const wsId = get().activeWorkspaceId;
     if (!wsId) return;
@@ -129,18 +176,23 @@ export const createRequestSlice: StateCreator<
     if (!opState) return;
 
     try {
-      await operationRepository.saveOperationData(wsId, key, {
-        formData: {
-          pathData: opState.pathData,
-          queryData: opState.queryData,
-          headerData: opState.headerData,
-          customHeaderData: opState.customHeaderData,
-          bodyData: opState.bodyData,
-        },
-        response: opState.response,
+      // Serialize form data
+      const formData = JSON.stringify({
+        pathData: opState.pathData,
+        queryData: opState.queryData,
+        headerData: opState.headerData,
+        customHeaderData: opState.customHeaderData,
+        bodyData: opState.bodyData,
       });
+
+      // Serialize response if present
+      const response = opState.response
+        ? JSON.stringify(opState.response)
+        : null;
+
+      await sqlite.saveOperationState(wsId, key, formData, response);
     } catch (error) {
-      console.error("Failed to persist operation to IndexedDB:", error);
+      console.error("Failed to persist operation to SQLite:", error);
     }
   },
 });

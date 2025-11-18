@@ -154,6 +154,7 @@ export interface WorkspaceSlice {
   workspaces: Record<string, Workspace>;
   workspaceOrder: string[];
   activeWorkspaceId: string | null;
+  initializeAppState: () => Promise<void>;
   createWorkspace: (name?: string) => string;
   renameWorkspace: (id: string, name: string) => void;
   removeWorkspace: (id: string) => void;

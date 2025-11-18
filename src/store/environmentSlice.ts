@@ -1,5 +1,7 @@
 import type { StateCreator } from "zustand";
 import type { AppState, EnvironmentSlice, Environment } from "./types";
+import * as sqlite from "@/lib/storage/sqliteRepository";
+import type { DbWorkspace } from "@/types/backend";
 
 // Generate a unique ID for environments
 const generateId = () =>
@@ -18,12 +20,15 @@ export const createEnvironmentSlice: StateCreator<
   addEnvironment: (name: string) => {
     const id = generateId();
     const keys = get().environmentKeys || [];
+    const wsId = get().activeWorkspaceId;
+
     const newEnvironment: Environment = {
       id,
       name,
       variables: Object.fromEntries(keys.map((k) => [k, ""])),
     };
 
+    // 1. Update in-memory state immediately
     set((state) => {
       const nextEnvs = {
         ...state.environments,
@@ -31,7 +36,6 @@ export const createEnvironmentSlice: StateCreator<
       };
 
       // Initialize empty auth values for this environment
-      // Handle legacy workspaces that don't have environmentValues
       const nextAuth = {
         ...state.auth,
         environmentValues: {
@@ -41,7 +45,6 @@ export const createEnvironmentSlice: StateCreator<
       };
 
       let updatedWorkspaces = state.workspaces;
-      const wsId = state.activeWorkspaceId;
       if (wsId && state.workspaces[wsId]) {
         const ws = state.workspaces[wsId];
         updatedWorkspaces = {
@@ -63,10 +66,33 @@ export const createEnvironmentSlice: StateCreator<
       };
     });
 
+    // 2. Persist to SQLite
+    if (wsId) {
+      sqlite
+        .createEnvironment(id, wsId, name)
+        .then(() => {
+          console.log("Environment created in database:", id);
+        })
+        .catch((error) => {
+          console.error("Failed to create environment in database:", error);
+        });
+    }
+
     return id;
   },
 
   removeEnvironment: (id: string) => {
+    // 1. Delete from database first (CASCADE will remove variable values)
+    sqlite
+      .deleteEnvironment(id)
+      .then(() => {
+        console.log("Environment deleted from database:", id);
+      })
+      .catch((error) => {
+        console.error("Failed to delete environment from database:", error);
+      });
+
+    // 2. Update in-memory state
     set((state) => {
       const newEnvironments = { ...state.environments };
       delete newEnvironments[id];
@@ -75,7 +101,6 @@ export const createEnvironmentSlice: StateCreator<
         state.activeEnvironmentId === id ? null : state.activeEnvironmentId;
 
       // Remove auth values for this environment
-      // Handle legacy workspaces that don't have environmentValues
       const newEnvAuthValues = { ...(state.auth.environmentValues || {}) };
       delete newEnvAuthValues[id];
 
@@ -112,9 +137,11 @@ export const createEnvironmentSlice: StateCreator<
   },
 
   setActiveEnvironment: (id: string | null) => {
+    const wsId = get().activeWorkspaceId;
+
+    // 1. Update in-memory state immediately
     set((state) => {
       let updatedWorkspaces = state.workspaces;
-      const wsId = state.activeWorkspaceId;
       if (wsId && state.workspaces[wsId]) {
         const ws = state.workspaces[wsId];
         updatedWorkspaces = {
@@ -127,13 +154,43 @@ export const createEnvironmentSlice: StateCreator<
       }
       return { activeEnvironmentId: id, workspaces: updatedWorkspaces };
     });
+
+    // 2. Persist to database
+    if (wsId) {
+      const ws = get().workspaces[wsId];
+      if (ws) {
+        const dbWorkspace: DbWorkspace = {
+          id: ws.id,
+          name: ws.name,
+          active_spec_id: ws.specId,
+          active_environment_id: id,
+          base_url: ws.data.baseUrl || null,
+          selected_operation_key: ws.data.selectedKey || null,
+          sort_order: get().workspaceOrder.indexOf(wsId),
+        };
+
+        sqlite.updateWorkspace(dbWorkspace).catch((error) => {
+          console.error(
+            "Failed to update active environment in database:",
+            error
+          );
+        });
+      }
+    }
   },
 
   addVariableKey: (rawKey: string) => {
     const key = rawKey.trim();
     if (!key) return;
+
+    const wsId = get().activeWorkspaceId;
+    if (!wsId) return;
+
+    // Check if key already exists
+    if (get().environmentKeys.includes(key)) return;
+
+    // 1. Update in-memory state immediately
     set((state) => {
-      if (state.environmentKeys.includes(key)) return state;
       const updatedEnvs: Record<string, Environment> = {};
       for (const [id, env] of Object.entries(state.environments)) {
         updatedEnvs[id] = {
@@ -144,7 +201,6 @@ export const createEnvironmentSlice: StateCreator<
       const nextKeys = [...state.environmentKeys, key];
 
       let updatedWorkspaces = state.workspaces;
-      const wsId = state.activeWorkspaceId;
       if (wsId && state.workspaces[wsId]) {
         const ws = state.workspaces[wsId];
         updatedWorkspaces = {
@@ -161,16 +217,51 @@ export const createEnvironmentSlice: StateCreator<
       }
 
       return {
-        environmentKeys: [...state.environmentKeys, key],
+        environmentKeys: nextKeys,
         environments: updatedEnvs,
         workspaces: updatedWorkspaces,
       };
     });
+
+    // 2. Persist to database
+    sqlite
+      .addVariableKey(wsId, key)
+      .then((keyId) => {
+        console.log("Variable key added to database:", key, "ID:", keyId);
+      })
+      .catch((error) => {
+        console.error("Failed to add variable key to database:", error);
+      });
   },
 
   removeVariableKey: (key: string) => {
+    const wsId = get().activeWorkspaceId;
+    if (!wsId) return;
+
+    if (!get().environmentKeys.includes(key)) return;
+
+    // Find the key ID from the loaded workspace data
+    // Note: This requires that we maintain a mapping or query the database
+    // For now, we'll query all variable keys to find the ID
+    const performDelete = async () => {
+      try {
+        const data = await sqlite.getFullWorkspaceData(wsId);
+        if (data) {
+          const keyRecord = data.variableKeys.find((k) => k.key_name === key);
+          if (keyRecord) {
+            await sqlite.removeVariableKey(keyRecord.id);
+            console.log("Variable key deleted from database:", key);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to delete variable key from database:", error);
+      }
+    };
+
+    performDelete();
+
+    // 1. Update in-memory state immediately
     set((state) => {
-      if (!state.environmentKeys.includes(key)) return state;
       const updatedEnvs: Record<string, Environment> = {};
       for (const [id, env] of Object.entries(state.environments)) {
         const vars = { ...env.variables };
@@ -180,7 +271,6 @@ export const createEnvironmentSlice: StateCreator<
       const nextKeys = state.environmentKeys.filter((k) => k !== key);
 
       let updatedWorkspaces = state.workspaces;
-      const wsId = state.activeWorkspaceId;
       if (wsId && state.workspaces[wsId]) {
         const ws = state.workspaces[wsId];
         updatedWorkspaces = {
@@ -206,9 +296,40 @@ export const createEnvironmentSlice: StateCreator<
   renameVariableKey: (oldKey: string, rawNewKey: string) => {
     const newKey = rawNewKey.trim();
     if (!newKey || newKey === oldKey) return;
+
+    const wsId = get().activeWorkspaceId;
+    if (!wsId) return;
+
+    if (!get().environmentKeys.includes(oldKey)) return;
+    if (get().environmentKeys.includes(newKey)) return; // avoid dup
+
+    // Find the key ID and rename in database
+    const performRename = async () => {
+      try {
+        const data = await sqlite.getFullWorkspaceData(wsId);
+        if (data) {
+          const keyRecord = data.variableKeys.find(
+            (k) => k.key_name === oldKey
+          );
+          if (keyRecord) {
+            await sqlite.renameVariableKey(keyRecord.id, newKey);
+            console.log(
+              "Variable key renamed in database:",
+              oldKey,
+              "→",
+              newKey
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Failed to rename variable key in database:", error);
+      }
+    };
+
+    performRename();
+
+    // 1. Update in-memory state immediately
     set((state) => {
-      if (!state.environmentKeys.includes(oldKey)) return state;
-      if (state.environmentKeys.includes(newKey)) return state; // avoid dup
       const newKeys = state.environmentKeys.map((k) =>
         k === oldKey ? newKey : k
       );
@@ -222,7 +343,6 @@ export const createEnvironmentSlice: StateCreator<
         updatedEnvs[id] = { ...env, variables: vars };
       }
       let updatedWorkspaces = state.workspaces;
-      const wsId = state.activeWorkspaceId;
       if (wsId && state.workspaces[wsId]) {
         const ws = state.workspaces[wsId];
         updatedWorkspaces = {
@@ -246,10 +366,47 @@ export const createEnvironmentSlice: StateCreator<
   },
 
   setVariableValue: (environmentId: string, key: string, value: string) => {
+    const wsId = get().activeWorkspaceId;
+    if (!wsId) return;
+
+    const env = get().environments[environmentId];
+    if (!env) return;
+
+    const isNewKey = !get().environmentKeys.includes(key);
+
+    // Find the key ID and set value in database
+    const performSet = async () => {
+      try {
+        const data = await sqlite.getFullWorkspaceData(wsId);
+        if (data) {
+          let keyId: number;
+
+          if (isNewKey) {
+            // Add the key first
+            keyId = await sqlite.addVariableKey(wsId, key);
+          } else {
+            // Find existing key ID
+            const keyRecord = data.variableKeys.find((k) => k.key_name === key);
+            if (!keyRecord) {
+              console.error("Variable key not found:", key);
+              return;
+            }
+            keyId = keyRecord.id;
+          }
+
+          // Set the value
+          await sqlite.setVariableValue(environmentId, keyId, value);
+          console.log("Variable value set in database:", key, "=", value);
+        }
+      } catch (error) {
+        console.error("Failed to set variable value in database:", error);
+      }
+    };
+
+    performSet();
+
+    // 1. Update in-memory state immediately
     set((state) => {
-      const env = state.environments[environmentId];
-      if (!env) return state;
-      const isNewKey = !state.environmentKeys.includes(key);
       const nextEnvs: Record<string, Environment> = {
         ...state.environments,
       };
@@ -266,7 +423,6 @@ export const createEnvironmentSlice: StateCreator<
         }
         const nextKeys = [...state.environmentKeys, key];
         let updatedWorkspaces = state.workspaces;
-        const wsId = state.activeWorkspaceId;
         if (wsId && state.workspaces[wsId]) {
           const ws = state.workspaces[wsId];
           updatedWorkspaces = {
@@ -293,7 +449,6 @@ export const createEnvironmentSlice: StateCreator<
         variables: { ...env.variables, [key]: value },
       };
       let updatedWorkspaces = state.workspaces;
-      const wsId = state.activeWorkspaceId;
       if (wsId && state.workspaces[wsId]) {
         const ws = state.workspaces[wsId];
         updatedWorkspaces = {
@@ -306,6 +461,7 @@ export const createEnvironmentSlice: StateCreator<
   },
 
   updateEnvironmentName: (id: string, name: string) => {
+    // 1. Update in-memory state immediately
     set((state) => {
       const environment = state.environments[id];
       if (!environment) return state;
@@ -325,5 +481,15 @@ export const createEnvironmentSlice: StateCreator<
       }
       return { environments: nextEnvs, workspaces: updatedWorkspaces };
     });
+
+    // 2. Persist to database
+    sqlite
+      .updateEnvironment(id, name)
+      .then(() => {
+        console.log("Environment name updated in database:", id, name);
+      })
+      .catch((error) => {
+        console.error("Failed to update environment name in database:", error);
+      });
   },
 });

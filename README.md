@@ -65,19 +65,19 @@ In essence, it's a comprehensive, modern desktop application for interacting wit
 
 ### Source Code: Libraries & Utilities (`src/lib/`)
 
-| File/Folder                         | Summary                                                                                                           |
-| :---------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
-| `src/lib/openapi.ts`                | Logic for fetching, parsing, converting (Swagger 2.0 $\to$ OAS 3.0), dereferencing specs, and listing operations. |
-| `src/lib/schema.ts`                 | Logic to convert OpenAPI parameter/body structures into JSON Schema for RJSF forms.                               |
-| `src/lib/request.ts`/`curl.ts`      | Utilities for constructing final request URLs and generating cURL command strings.                                |
-| `src/lib/auth.ts`                   | Logic to resolve security schemes into applied HTTP headers and query parameters.                                 |
-| `src/lib/templating.ts`             | Functions for recursively resolving `{{variable}}` placeholders in data structures.                               |
-| `src/lib/storage/SpecRepository.ts` | IndexedDB interface for persisting and retrieving OpenAPI specifications.                                         |
-| `src/lib/http/index.ts`             | Selector that chooses between the browser `fetch` or Tauri backend HTTP client.                                   |
-| `src/lib/http/FetchHttpClient.ts`   | Implementation of the HTTP client using standard browser `fetch` with timeout support.                            |
-| `src/lib/http/TauriHttpClient.ts`   | Implementation of the HTTP client using Tauri's `invoke` to call the Rust backend.                                |
-| `src/lib/environment-colors.ts`     | Utility for assigning unique color classes to different API environments.                                         |
-| `src/lib/utils.ts`                  | General utilities, including class name merging (`cn`).                                                           |
+| File/Folder                           | Summary                                                                                                           |
+| :------------------------------------ | :---------------------------------------------------------------------------------------------------------------- |
+| `src/lib/openapi.ts`                  | Logic for fetching, parsing, converting (Swagger 2.0 $\to$ OAS 3.0), dereferencing specs, and listing operations. |
+| `src/lib/schema.ts`                   | Logic to convert OpenAPI parameter/body structures into JSON Schema for RJSF forms.                               |
+| `src/lib/request.ts`/`curl.ts`        | Utilities for constructing final request URLs and generating cURL command strings.                                |
+| `src/lib/auth.ts`                     | Logic to resolve security schemes into applied HTTP headers and query parameters.                                 |
+| `src/lib/templating.ts`               | Functions for recursively resolving `{{variable}}` placeholders in data structures.                               |
+| `src/lib/storage/sqliteRepository.ts` | SQLite database interface for all data persistence operations (specs, workspaces, environments, etc.).            |
+| `src/lib/http/index.ts`               | Selector that chooses between the browser `fetch` or Tauri backend HTTP client.                                   |
+| `src/lib/http/FetchHttpClient.ts`     | Implementation of the HTTP client using standard browser `fetch` with timeout support.                            |
+| `src/lib/http/TauriHttpClient.ts`     | Implementation of the HTTP client using Tauri's `invoke` to call the Rust backend.                                |
+| `src/lib/environment-colors.ts`       | Utility for assigning unique color classes to different API environments.                                         |
+| `src/lib/utils.ts`                    | General utilities, including class name merging (`cn`).                                                           |
 
 ### Tauri Backend (`src-tauri/`)
 

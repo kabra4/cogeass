@@ -16,7 +16,7 @@ import { loadSpec, listOperations } from "@/lib/openapi";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { Loader2, Server } from "lucide-react";
-import { specRepository } from "@/lib/storage/SpecRepository";
+import { getSpec } from "@/lib/storage/sqliteRepository";
 import { Input } from "@/components/ui/input";
 import Sidebar from "@/components/Sidebar";
 import WorkspacePage from "@/pages/WorkspacePage";
@@ -25,11 +25,7 @@ import HeadersPage from "@/pages/HeadersPage";
 import AuthPage from "@/pages/AuthPage";
 import { EnvironmentSelector } from "@/components/EnvironmentSelector";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
-import {
-  runMigrationIfNeeded,
-  ensureLocalStorageCleanup,
-} from "@/lib/storage/migrations";
-import { operationRepository } from "@/lib/storage/OperationRepository";
+import { initDatabase } from "@/lib/storage/sqliteRepository";
 
 export default function App() {
   const hasHydrated = useHasHydrated();
@@ -44,81 +40,61 @@ export default function App() {
     setActivePage,
     workspaces,
     activeWorkspaceId,
+    initializeAppState,
     createWorkspace,
-    __applyWorkspaceToRoot,
   } = useAppStore((s) => s);
   const [isAutoLoading, setIsAutoLoading] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const activeWorkspace =
     activeWorkspaceId && workspaces[activeWorkspaceId]
       ? workspaces[activeWorkspaceId]
       : null;
 
-  // Run migration on first load
-  useEffect(() => {
-    const runMigration = async () => {
-      try {
-        await runMigrationIfNeeded();
-        // Always ensure localStorage is cleaned up after migration
-        ensureLocalStorageCleanup();
-      } catch (error) {
-        console.error("Migration failed:", error);
-        // Even if migration fails, try to cleanup localStorage to prevent quota errors
-        try {
-          ensureLocalStorageCleanup();
-        } catch (cleanupError) {
-          console.error("Cleanup also failed:", cleanupError);
-        }
-      }
-    };
-    runMigration();
-  }, []);
-
-  // Periodic cleanup of old responses (older than 30 days)
-  useEffect(() => {
-    const cleanupOldResponses = async () => {
-      try {
-        const thirtyDaysAgo = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
-        const deleted = await operationRepository.cleanupOldResponses(
-          thirtyDaysAgo
-        );
-        if (deleted > 0) {
-          console.log(`Cleaned up ${deleted} old responses from IndexedDB`);
-        }
-      } catch (error) {
-        console.error("Failed to cleanup old responses:", error);
-      }
-    };
-
-    // Run cleanup on mount
-    cleanupOldResponses();
-
-    // Run cleanup daily
-    const cleanupInterval = setInterval(
-      cleanupOldResponses,
-      24 * 60 * 60 * 1000
-    );
-
-    return () => clearInterval(cleanupInterval);
-  }, []);
-
+  // Initialize SQLite database on first load
   useEffect(() => {
     if (!hasHydrated) return;
-    const ensureWorkspace = () => {
-      // Ensure at least one workspace exists
-      if (!activeWorkspaceId || !workspaces[activeWorkspaceId]) {
-        // This will also apply the workspace to root
-        createWorkspace("Workspace 1");
-      } else {
-        __applyWorkspaceToRoot(activeWorkspaceId);
+
+    const init = async () => {
+      try {
+        console.log("Initializing database...");
+        await initDatabase();
+        console.log("SQLite database initialized successfully");
+
+        console.log("Loading workspaces from database...");
+        await initializeAppState();
+        console.log("App state initialized successfully");
+
+        setIsInitialized(true);
+      } catch (error) {
+        console.error("Failed to initialize database:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        setInitError(errorMessage);
+        toast.error(`Failed to initialize database: ${errorMessage}`);
+        // Still mark as initialized to allow UI to render
+        setIsInitialized(true);
       }
     };
-    ensureWorkspace();
+    init();
+  }, [hasHydrated, initializeAppState]);
+
+  // Note: Workspace initialization is now handled by initializeAppState()
+  // This effect is kept for backward compatibility but may not be needed
+  useEffect(() => {
+    if (!hasHydrated) return;
+    // initializeAppState() should have already loaded workspaces
+    // Only create default if somehow we still don't have one
+    if (Object.keys(workspaces).length === 0 && !activeWorkspaceId) {
+      createWorkspace("Workspace 1");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated]);
 
   // Load the spec whenever the active workspace changes (or its specId changes)
   useEffect(() => {
     if (!hasHydrated) return;
+    if (!isInitialized) return;
     if (!activeWorkspaceId) return;
 
     const ws = workspaces[activeWorkspaceId];
@@ -134,14 +110,15 @@ export default function App() {
       setIsAutoLoading(true);
       try {
         if (ws.specId) {
-          const specData = await specRepository.getById(ws.specId);
+          const dbSpec = await getSpec(ws.specId);
           if (!cancelled) {
-            if (specData) {
+            if (dbSpec) {
+              const specData = JSON.parse(dbSpec.spec_content);
               setSpec(specData, ws.specId, ws.specUrl || undefined);
               setOperations(listOperations(specData));
             } else {
               console.warn(
-                "Spec ID present but not found in IndexedDB:",
+                "Spec ID present but not found in database:",
                 ws.specId
               );
               setOperations([]);
@@ -171,7 +148,18 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, activeWorkspaceId, activeWorkspace?.specId, specId]);
+  }, [
+    hasHydrated,
+    isInitialized,
+    activeWorkspaceId,
+    activeWorkspace?.specId,
+    specId,
+    workspaces,
+    spec,
+    setSpec,
+    setOperations,
+    setIsAutoLoading,
+  ]);
 
   const loadPetstore = async () => {
     const url = "https://petstore3.swagger.io/api/v3/openapi.json";
@@ -187,8 +175,27 @@ export default function App() {
     }
   };
 
-  if (!hasHydrated) {
-    return null;
+  if (!hasHydrated || !isInitialized) {
+    return (
+      <div className="flex justify-center items-center w-screen h-screen bg-background text-foreground">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <span className="ml-3 text-sm">
+          {!hasHydrated ? "Loading application..." : "Initializing database..."}
+        </span>
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="flex flex-col justify-center items-center w-screen h-screen bg-background text-foreground">
+        <div className="text-destructive mb-4">
+          Database initialization failed
+        </div>
+        <div className="text-sm text-muted-foreground mb-4">{initError}</div>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    );
   }
 
   if (isAutoLoading) {
@@ -268,9 +275,16 @@ export default function App() {
               {renderActivePage()}
             </main>
           </div>
-        ) : // Only show Welcome if the active workspace really has no specId
-        // Otherwise, it's in the process of loading (spinner is shown), so don't prompt
-        !activeWorkspace?.specId ? (
+        ) : activeWorkspace?.specId ? (
+          // Workspace has a spec but it's still loading
+          <div className="flex justify-center items-center w-screen h-screen bg-background text-foreground">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <span className="ml-3 text-sm">
+              Loading workspace specification...
+            </span>
+          </div>
+        ) : (
+          // No spec in workspace, show welcome dialog
           <Dialog open={true}>
             <DialogContent className="p-4">
               <DialogHeader>
@@ -289,7 +303,7 @@ export default function App() {
               </div>
             </DialogContent>
           </Dialog>
-        ) : null}
+        )}
         <Toaster />
       </>
     </ThemeProvider>

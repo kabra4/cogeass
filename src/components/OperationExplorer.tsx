@@ -118,7 +118,7 @@ export default function OperationExplorer() {
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-1 pt-1">
-                {ops.map((o: any) => {
+                {ops.map((o: any, index: number) => {
                   const isActive =
                     selected &&
                     selected.method === o.method &&
@@ -138,7 +138,7 @@ export default function OperationExplorer() {
                     ] || "bg-gray-500 hover:bg-gray-500/80 text-white";
                   return (
                     <div
-                      key={`${o.method}:${o.path}`}
+                      key={`${o.method}:${o.path}:${index}`}
                       className={clsx(
                         "flex items-center gap-2 border rounded-md p-2 cursor-pointer hover:bg-muted transition-colors",
                         isActive && "bg-accent border-2 border-primary"

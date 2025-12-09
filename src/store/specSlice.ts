@@ -17,6 +17,17 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
     const schemes = spec.components?.securitySchemes || {};
     get().setAuthSchemes(schemes as Record<string, SecurityScheme>);
 
+    // NEW: Handle Base URL auto-population
+    const servers =
+      ((spec as Record<string, unknown>).servers as {
+        url?: string;
+        description?: string;
+      }[]) || [];
+    if (Array.isArray(servers) && servers.length > 0 && servers[0].url) {
+      // We perform this update immediately to reflect in the UI
+      get().setBaseUrl(servers[0].url);
+    }
+
     const activeId = get().activeWorkspaceId;
     let nextWorkspaces = get().workspaces;
 

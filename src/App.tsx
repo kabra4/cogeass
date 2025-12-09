@@ -15,9 +15,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { loadSpec, listOperations } from "@/lib/openapi";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { Loader2, Server } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getSpec } from "@/lib/storage/sqliteRepository";
-import { Input } from "@/components/ui/input";
+import BaseUrlSelector from "@/components/BaseUrlSelector";
 import Sidebar from "@/components/Sidebar";
 import WorkspacePage from "@/pages/WorkspacePage";
 import EnvironmentsPage from "@/pages/EnvironmentsPage";
@@ -34,8 +34,6 @@ export default function App() {
     specId,
     setSpec,
     setOperations,
-    baseUrl,
-    setBaseUrl,
     activePage,
     setActivePage,
     workspaces,
@@ -256,15 +254,7 @@ export default function App() {
                     />
                   </div>
                   <div className="flex flex-1 justify-center px-8">
-                    <div className="relative w-full max-w-xl">
-                      <Server className="absolute top-2.5 left-2.5 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Base URL"
-                        value={baseUrl || ""}
-                        onChange={(e) => setBaseUrl(e.target.value)}
-                        className="pl-9 h-9"
-                      />
-                    </div>
+                    <BaseUrlSelector />
                   </div>
                   <div className="flex gap-2 items-center ml-auto">
                     <SpecLoader />

@@ -10,7 +10,7 @@ import {
 import { Clock } from "lucide-react";
 
 export default function HistoryPanel() {
-  const { history, setSelected, selected } = useAppStore();
+  const { history, setSelected, selectedKey } = useAppStore();
 
   // Filter out items with null operationRef (can happen when loading from database)
   const validHistory = history.filter((item) => item.operationRef !== null);
@@ -38,13 +38,10 @@ export default function HistoryPanel() {
         <div className="flex flex-col gap-1">
           {validHistory.map((item) => {
             const op = item.operationRef;
-            const isActive =
-              selected &&
-              selected.method === op.method &&
-              selected.path === op.path;
+            const isActive = selectedKey === item.key;
             const methodColor =
               methodColors[
-                op.method.toLowerCase() as keyof typeof methodColors
+              op.method.toLowerCase() as keyof typeof methodColors
               ] || "bg-gray-500 hover:bg-gray-500/80 text-white";
 
             return (

@@ -360,7 +360,9 @@ export const createWorkspaceSlice: StateCreator<
       const history: HistoryItem[] = [];
       // Note: We'll need to reconstruct operationRef from operation_key
       // For now, keep history minimal until we load operations
-      for (const historyEntry of data.history) {
+      // Limit history to 5 items
+      const limitedHistory = data.history.slice(0, 5);
+      for (const historyEntry of limitedHistory) {
         history.push({
           operationRef: null as unknown as OperationRef, // Will be reconstructed when operations are loaded
           timestamp: historyEntry.timestamp,

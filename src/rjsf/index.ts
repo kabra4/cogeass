@@ -21,6 +21,7 @@ export const shadcnTheme: Partial<ThemeProps<any>> = {
     TextWidget,
     NumberWidget,
     SelectWidget,
+    MultiSelectEnumWidget,
     CheckboxWidget,
     ArrayStringWidget,
   },

@@ -17,7 +17,23 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
     const schemes = spec.components?.securitySchemes || {};
     get().setAuthSchemes(schemes as Record<string, SecurityScheme>);
 
-    // Update runtime state immediately
+    const activeId = get().activeWorkspaceId;
+    let nextWorkspaces = get().workspaces;
+
+    // Prepare workspace update immediately
+    if (activeId && nextWorkspaces[activeId]) {
+      const ws = nextWorkspaces[activeId];
+      if (ws.specId !== id || ws.specUrl !== url) {
+        nextWorkspaces = {
+          ...nextWorkspaces,
+          [activeId]: { ...ws, specId: id, specUrl: url || null },
+        };
+      }
+    }
+
+    // Update runtime state AND workspace state immediately
+    // This prevents race conditions where the UI effect sees a mismatch
+    // between specId and workspace.specId
     set({
       spec,
       specId: id,
@@ -25,6 +41,7 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
       selected: null,
       operations: [],
       operationState: {},
+      workspaces: nextWorkspaces,
     });
 
     // Persist spec to SQLite
@@ -36,22 +53,10 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
       console.error("Failed to save spec to database:", error);
     }
 
-    // Update workspace to reference this spec
-    const activeId = get().activeWorkspaceId;
+    // Persist workspace update to database
     if (activeId) {
       const ws = get().workspaces[activeId];
       if (ws) {
-        // Update in-memory workspace
-        if (ws.specId !== id || ws.specUrl !== url) {
-          set((state) => ({
-            workspaces: {
-              ...state.workspaces,
-              [activeId]: { ...ws, specId: id, specUrl: url || null },
-            },
-          }));
-        }
-
-        // Persist workspace update to database
         const dbWorkspace: DbWorkspace = {
           id: ws.id,
           name: ws.name,

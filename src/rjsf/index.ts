@@ -9,11 +9,13 @@ import CompactArrayFieldTemplate from "./templates/CompactArrayFieldTemplate";
 import ArrayStringWidget from "./widgets/ArrayStringWidget";
 import MultiSelectEnumWidget from "./widgets/MultiSelectEnumWidget";
 import CustomAnyOfField from "./fields/CustomAnyOfField";
+import RawJsonField from "./fields/RawJsonField";
 
 export const shadcnTheme: Partial<ThemeProps<any>> = {
   fields: {
     AnyOfField: CustomAnyOfField as any,
     OneOfField: CustomAnyOfField as any,
+    RawJsonField: RawJsonField as any,
   },
   widgets: {
     TextWidget,
@@ -21,7 +23,6 @@ export const shadcnTheme: Partial<ThemeProps<any>> = {
     SelectWidget,
     CheckboxWidget,
     ArrayStringWidget,
-    MultiSelectEnumWidget,
   },
   templates: {
     FieldTemplate: CompactFieldTemplate as any,

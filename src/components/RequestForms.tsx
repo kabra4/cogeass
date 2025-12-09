@@ -464,9 +464,16 @@ function buildUiSchema(schema: JSONSchema7): UiSchema {
         setUi(ui, key, { "ui:widget": "ArrayStringWidget" });
       }
     }
-    if (nodeType.includes("object") && node.properties) {
-      for (const [k, v] of Object.entries(node.properties)) {
-        walk(v as JSONSchema7, [...path, k]);
+    if (nodeType.includes("object")) {
+      if (node.properties && Object.keys(node.properties).length > 0) {
+        for (const [k, v] of Object.entries(node.properties)) {
+          walk(v as JSONSchema7, [...path, k]);
+        }
+      } else if (node.additionalProperties !== false) {
+        // If object has no fixed properties but allows additional properties (or is fully open),
+        // use the Raw JSON field to allow freeform entry.
+        // We use ui:field to replace the entire object renderer.
+        setUi(ui, key, { "ui:field": "RawJsonField" });
       }
     }
     if (node.anyOf || node.oneOf || node.allOf) {

@@ -18,7 +18,13 @@ export function getJsonBodySchema(
     null) as OpenAPIV3.MediaTypeObject | OpenAPIV3_1.MediaTypeObject | null;
   if (!mt) return { schema: null, mediaType: null };
   const raw = mt.schema;
-  if (!raw) return { schema: null, mediaType: null };
+  if (!raw) {
+    // If we have a JSON media type but no schema, assume arbitrary JSON
+    return {
+      schema: { type: "object", additionalProperties: true } as JSONSchema7,
+      mediaType: "application/json",
+    };
+  }
 
   if (isOAS31(spec)) {
     return { schema: raw as JSONSchema7, mediaType: "application/json" };

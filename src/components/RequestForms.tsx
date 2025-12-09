@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { withTheme } from "@rjsf/core";
 import type { RJSFSchema, UiSchema } from "@rjsf/utils";
 import type { IChangeEvent } from "@rjsf/core";
@@ -10,16 +10,27 @@ import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import { getJsonBodySchema, buildParamsSchema } from "@/lib/schema";
 import { shadcnTheme } from "@/rjsf";
-import { Info, Filter, Loader2 } from "lucide-react";
+import {
+  Info,
+  Filter,
+  Loader2,
+  Code,
+  FileText,
+  AlertCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { clsx } from "clsx";
 import HeaderEditor from "./HeaderEditor";
 import type { AppliedAuth } from "@/lib/auth";
 import { useAppStore } from "@/store/useAppStore";
+import Editor from "@monaco-editor/react";
+import { useTheme } from "next-themes";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ThemedForm = withTheme(shadcnTheme);
 
 type ActiveTab = "path" | "query" | "headers" | "body";
+type BodyMode = "form" | "raw";
 
 interface RequestFormsProps {
   method: string;
@@ -62,6 +73,7 @@ export default function RequestForms({
   op,
   spec,
 }: RequestFormsProps) {
+  const { resolvedTheme } = useTheme();
   const globalHeaders = useAppStore((s) => s.globalHeaders);
   const setActivePage = useAppStore((s) => s.setActivePage);
   const hasAuthHeaders = Object.keys(appliedAuth.headers).length > 0;
@@ -70,6 +82,46 @@ export default function RequestForms({
   const [showDocs, setShowDocs] = useState(false);
   const [showOptional, setShowOptional] = useState(true);
   const [filterQ, setFilterQ] = useState("");
+
+  // Body handling state
+  const [bodyMode, setBodyMode] = useState<BodyMode>("form");
+  const [jsonText, setJsonText] = useState("");
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const isTypingRef = useRef(false);
+
+  // Sync bodyData to jsonText when switching to Raw mode or when bodyData changes externally
+  useEffect(() => {
+    if (!isTypingRef.current) {
+      setJsonText(JSON.stringify(bodyData || {}, null, 2));
+    }
+  }, [bodyData]);
+
+  const handleJsonChange = (value: string | undefined) => {
+    isTypingRef.current = true;
+    const newVal = value || "";
+    setJsonText(newVal);
+
+    try {
+      const parsed = JSON.parse(newVal);
+      setJsonError(null);
+      onBodyDataChange(parsed);
+    } catch (e) {
+      if (newVal.trim() === "") {
+        setJsonError(null);
+        onBodyDataChange({});
+      } else {
+        setJsonError((e as Error).message);
+      }
+    }
+  };
+
+  // Reset typing ref when mode changes
+  useEffect(() => {
+    isTypingRef.current = false;
+    if (bodyMode === "raw") {
+      setJsonText(JSON.stringify(bodyData || {}, null, 2));
+    }
+  }, [bodyMode, bodyData]);
 
   const paramsSchemas = useMemo(() => {
     if (!op) return null;
@@ -148,6 +200,8 @@ export default function RequestForms({
         break;
       case "body":
         onBodyDataChange({});
+        setJsonText("{}");
+        setJsonError(null);
         break;
     }
   };
@@ -168,25 +222,32 @@ export default function RequestForms({
   const canClear = ["path", "query", "headers", "body"].includes(activeTab);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden w-full">
       {/* Sticky sub-header for operation + controls */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4 shrink-0">
         <div className="flex flex-wrap items-center gap-2 py-2">
-          <Badge className={clsx("w-14 justify-center", methodColor)}>
+          <Badge className={clsx("w-14 justify-center shrink-0", methodColor)}>
             {method}
           </Badge>
-          <div className="flex-1 truncate">
-            <div className={clsx("text-sm", !op.summary && "font-mono")}>
+          <div className="flex-1 truncate min-w-0">
+            <div
+              className={clsx("text-sm truncate", !op.summary && "font-mono")}
+            >
               {op.summary || path}
             </div>
             {op.summary && (
-              <div className="font-mono text-xs text-muted-foreground">
+              <div className="font-mono text-xs text-muted-foreground truncate">
                 {path}
               </div>
             )}
           </div>
           {isLoading ? (
-            <Button variant="outline" onClick={onCancel} title="Cancel Request">
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              title="Cancel Request"
+              className="shrink-0"
+            >
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
               Cancel
             </Button>
@@ -195,6 +256,7 @@ export default function RequestForms({
               onClick={onSend}
               disabled={!!isLoading}
               title="Ctrl/Cmd+Enter"
+              className="shrink-0"
             >
               Send
             </Button>
@@ -205,7 +267,7 @@ export default function RequestForms({
             placeholder="Search fields"
             value={filterQ}
             onChange={(e) => setFilterQ(e.target.value)}
-            className="w-[220px]"
+            className="w-[200px]"
           />
           <div className="ml-auto flex items-center gap-2">
             <Button
@@ -239,7 +301,7 @@ export default function RequestForms({
       </div>
 
       {/* Button-based Tab Navigation */}
-      <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 shrink-0">
         {hasPath && (
           <Button
             variant={activeTab === "path" ? "secondary" : "ghost"}
@@ -277,7 +339,7 @@ export default function RequestForms({
       </div>
 
       {/* Content Area */}
-      <div className="flex-grow overflow-auto px-4 pb-3">
+      <div className="flex-grow overflow-auto px-4 pb-3 min-h-0 w-full">
         {activeTab === "path" && hasPath && (
           <div className="space-y-4 pt-2">
             <ThemedForm
@@ -414,21 +476,85 @@ export default function RequestForms({
           </div>
         )}
         {activeTab === "body" && hasBody && (
-          <div className="space-y-4 pt-2">
-            <ThemedForm
-              schema={bodySchema.schema as RJSFSchema}
-              uiSchema={bodyUi as UiSchema}
-              formData={bodyData}
-              onChange={(e: IChangeEvent) => onBodyDataChange(e.formData || {})}
-              validator={validator}
-              liveValidate
-              showErrorList={false}
-              formContext={formContext}
-              omitExtraData
-              liveOmit
-            >
-              <div />
-            </ThemedForm>
+          <div className="flex flex-col h-full space-y-4 pt-2 w-full min-w-0">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Request Payload
+              </h3>
+              <div className="bg-muted p-1 rounded-md flex items-center gap-1">
+                <Button
+                  variant={bodyMode === "form" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setBodyMode("form")}
+                  className="h-7 text-xs"
+                >
+                  <FileText className="w-3.5 h-3.5 mr-1.5" />
+                  Form
+                </Button>
+                <Button
+                  variant={bodyMode === "raw" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setBodyMode("raw")}
+                  className="h-7 text-xs"
+                >
+                  <Code className="w-3.5 h-3.5 mr-1.5" />
+                  Raw JSON
+                </Button>
+              </div>
+            </div>
+
+            {bodyMode === "form" ? (
+              <ThemedForm
+                schema={bodySchema.schema as RJSFSchema}
+                uiSchema={bodyUi as UiSchema}
+                formData={bodyData}
+                onChange={(e: IChangeEvent) =>
+                  onBodyDataChange(e.formData || {})
+                }
+                validator={validator}
+                liveValidate
+                showErrorList={false}
+                formContext={formContext}
+                omitExtraData
+                liveOmit
+              >
+                <div />
+              </ThemedForm>
+            ) : (
+              // IMPORTANT: w-full and min-w-0 prevent flex item from growing infinitely due to Monaco
+              <div className="flex-grow flex flex-col min-h-[300px] border rounded-md overflow-hidden relative w-full min-w-0">
+                {jsonError && (
+                  <Alert
+                    variant="destructive"
+                    className="rounded-none border-b border-destructive/50 py-2"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs font-mono">
+                      {jsonError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <div className="flex-grow relative w-full h-full min-h-0">
+                  <Editor
+                    height="100%"
+                    width="100%"
+                    defaultLanguage="json"
+                    value={jsonText}
+                    onChange={handleJsonChange}
+                    options={{
+                      minimap: { enabled: false },
+                      wordWrap: "on",
+                      formatOnPaste: true,
+                      formatOnType: true,
+                      scrollBeyondLastLine: false,
+                      fontSize: 13,
+                      automaticLayout: true, // Auto resize with container
+                    }}
+                    theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -470,9 +596,6 @@ function buildUiSchema(schema: JSONSchema7): UiSchema {
           walk(v as JSONSchema7, [...path, k]);
         }
       } else if (node.additionalProperties !== false) {
-        // If object has no fixed properties but allows additional properties (or is fully open),
-        // use the Raw JSON field to allow freeform entry.
-        // We use ui:field to replace the entire object renderer.
         setUi(ui, key, { "ui:field": "RawJsonField" });
       }
     }

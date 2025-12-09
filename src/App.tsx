@@ -26,9 +26,12 @@ import AuthPage from "@/pages/AuthPage";
 import { EnvironmentSelector } from "@/components/EnvironmentSelector";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { initDatabase } from "@/lib/storage/sqliteRepository";
+import { useShallow } from "zustand/react/shallow";
 
 export default function App() {
   const hasHydrated = useHasHydrated();
+
+  // Use shallow selector to prevent re-renders on unrelated state changes
   const {
     spec,
     specId,
@@ -40,10 +43,25 @@ export default function App() {
     activeWorkspaceId,
     initializeAppState,
     createWorkspace,
-  } = useAppStore((s) => s);
+  } = useAppStore(
+    useShallow((s) => ({
+      spec: s.spec,
+      specId: s.specId,
+      setSpec: s.setSpec,
+      setOperations: s.setOperations,
+      activePage: s.activePage,
+      setActivePage: s.setActivePage,
+      workspaces: s.workspaces,
+      activeWorkspaceId: s.activeWorkspaceId,
+      initializeAppState: s.initializeAppState,
+      createWorkspace: s.createWorkspace,
+    }))
+  );
+
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+
   const activeWorkspace =
     activeWorkspaceId && workspaces[activeWorkspaceId]
       ? workspaces[activeWorkspaceId]
@@ -70,19 +88,15 @@ export default function App() {
           error instanceof Error ? error.message : "Unknown error";
         setInitError(errorMessage);
         toast.error(`Failed to initialize database: ${errorMessage}`);
-        // Still mark as initialized to allow UI to render
         setIsInitialized(true);
       }
     };
     init();
   }, [hasHydrated, initializeAppState]);
 
-  // Note: Workspace initialization is now handled by initializeAppState()
-  // This effect is kept for backward compatibility but may not be needed
+  // Create default workspace if none exists
   useEffect(() => {
     if (!hasHydrated) return;
-    // initializeAppState() should have already loaded workspaces
-    // Only create default if somehow we still don't have one
     if (Object.keys(workspaces).length === 0 && !activeWorkspaceId) {
       createWorkspace("Workspace 1");
     }
@@ -111,20 +125,35 @@ export default function App() {
           const dbSpec = await getSpec(ws.specId);
           if (!cancelled) {
             if (dbSpec) {
-              const specData = JSON.parse(dbSpec.spec_content);
-              setSpec(specData, ws.specId, ws.specUrl || undefined);
-              setOperations(listOperations(specData));
+              try {
+                const specData = JSON.parse(dbSpec.spec_content);
+                setSpec(specData, ws.specId, ws.specUrl || undefined);
+                setOperations(listOperations(specData));
+              } catch (parseError) {
+                console.error("Failed to parse spec content:", parseError);
+                toast.error(
+                  "Failed to parse stored specification. Resetting..."
+                );
+                // Clear spec if parsing fails
+                // @ts-expect-error setSpec handles nulls
+                setSpec(null, null, null);
+              }
             } else {
               console.warn(
                 "Spec ID present but not found in database:",
                 ws.specId
               );
+              // Clear spec from workspace if not found in DB to prevent getting stuck
+              // @ts-expect-error setSpec handles nulls
+              setSpec(null, null, null);
               setOperations([]);
             }
           }
         } else {
-          // Workspace has no spec yet; keep runtime spec null and operations empty
+          // Workspace has no spec; ensure runtime state is clear
           if (!cancelled) {
+            // @ts-expect-error setSpec handles nulls
+            setSpec(null, null, null);
             setOperations([]);
           }
         }
@@ -132,6 +161,9 @@ export default function App() {
         if (!cancelled) {
           console.error("Failed loading spec for workspace:", e);
           toast.error("Failed to load workspace schema.");
+          // Clear spec on error to exit loading state
+          // @ts-expect-error setSpec handles nulls
+          setSpec(null, null, null);
           setOperations([]);
         }
       } finally {
@@ -150,13 +182,13 @@ export default function App() {
     hasHydrated,
     isInitialized,
     activeWorkspaceId,
-    activeWorkspace?.specId,
+    // Use optional chaining and default to null to ensure stability of dependency
+    activeWorkspace?.specId || null,
     specId,
-    workspaces,
-    spec,
     setSpec,
     setOperations,
     setIsAutoLoading,
+    workspaces, // workspaces needed for lookup inside effect, dependency structure is handled by activeWorkspaceId + optional specId
   ]);
 
   const loadPetstore = async () => {
@@ -196,6 +228,8 @@ export default function App() {
     );
   }
 
+  // Only show full screen loader if auto-loading is in progress AND we don't have a spec yet
+  // If we have a spec (switching workspaces), we might want to keep showing the old one momentarily or show a loader
   if (isAutoLoading) {
     return (
       <div className="flex justify-center items-center w-screen h-screen bg-background text-foreground">
@@ -224,18 +258,18 @@ export default function App() {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <>
         {spec ? (
-          <div className="flex h-screen">
+          <div className="flex h-screen overflow-hidden">
             <Sidebar activeItem={activePage} onItemClick={setActivePage} />
-            <main className="flex flex-col flex-1">
+            <main className="flex flex-col flex-1 min-w-0">
               {/* Sticky header */}
               <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div className="flex items-center px-4 h-14">
-                  <div className="flex gap-3 items-center">
-                    <div className="text-lg font-bold tracking-tight">
+                  <div className="flex gap-3 items-center min-w-0">
+                    <div className="text-lg font-bold tracking-tight shrink-0">
                       CoGeass
                     </div>
                     <WorkspaceSelector />
-                    <div className="text-sm text-muted-foreground truncate max-w-[250px]">
+                    <div className="text-sm text-muted-foreground truncate max-w-[250px] hidden md:block">
                       {(() => {
                         try {
                           // Best effort to read spec title
@@ -253,20 +287,24 @@ export default function App() {
                       onManageEnvironments={() => setActivePage("envs")}
                     />
                   </div>
-                  <div className="flex flex-1 justify-center px-8">
+                  <div className="flex flex-1 justify-center px-4 md:px-8 min-w-0">
                     <BaseUrlSelector />
                   </div>
-                  <div className="flex gap-2 items-center ml-auto">
+                  <div className="flex gap-2 items-center ml-auto shrink-0">
                     <SpecLoader />
                     <ThemeToggle />
                   </div>
                 </div>
               </div>
-              {renderActivePage()}
+              <div className="flex-1 min-h-0 overflow-hidden">
+                {renderActivePage()}
+              </div>
             </main>
           </div>
         ) : activeWorkspace?.specId ? (
-          // Workspace has a spec but it's still loading
+          // Workspace has a spec but it's still loading (or failed silently if isAutoLoading is false)
+          // Since we fixed the error handling to clear specId on failure, this block effectively handles
+          // the brief transition before isAutoLoading kicks in, or if something falls through.
           <div className="flex justify-center items-center w-screen h-screen bg-background text-foreground">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             <span className="ml-3 text-sm">

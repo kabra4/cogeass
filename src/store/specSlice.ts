@@ -13,55 +13,63 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
   operations: [],
 
   setSpec: async (spec, id, url) => {
-    // Extract security schemes and update the auth store (active workspace)
-    const schemes = spec.components?.securitySchemes || {};
-    get().setAuthSchemes(schemes as Record<string, SecurityScheme>);
+    // If spec is null, we are unloading. Skip extraction.
+    if (spec) {
+      // Extract security schemes and update the auth store (active workspace)
+      const schemes = spec.components?.securitySchemes || {};
+      get().setAuthSchemes(schemes as Record<string, SecurityScheme>);
 
-    // NEW: Handle Base URL auto-population
-    const servers =
-      ((spec as Record<string, unknown>).servers as {
-        url?: string;
-        description?: string;
-      }[]) || [];
-    if (Array.isArray(servers) && servers.length > 0 && servers[0].url) {
-      // We perform this update immediately to reflect in the UI
-      get().setBaseUrl(servers[0].url);
+      // NEW: Handle Base URL auto-population
+      const servers =
+        ((spec as Record<string, unknown>).servers as {
+          url?: string;
+          description?: string;
+        }[]) || [];
+      if (Array.isArray(servers) && servers.length > 0 && servers[0].url) {
+        // We perform this update immediately to reflect in the UI
+        get().setBaseUrl(servers[0].url);
+      }
     }
 
     const activeId = get().activeWorkspaceId;
     let nextWorkspaces = get().workspaces;
 
     // Prepare workspace update immediately
+    // We update even if spec is null (to clear specId from workspace)
     if (activeId && nextWorkspaces[activeId]) {
       const ws = nextWorkspaces[activeId];
-      if (ws.specId !== id || ws.specUrl !== url) {
+      // If spec is null, id should be null (or ignored)
+      const nextSpecId = spec ? id : null;
+      const nextSpecUrl = spec ? url || null : null;
+
+      if (ws.specId !== nextSpecId || ws.specUrl !== nextSpecUrl) {
         nextWorkspaces = {
           ...nextWorkspaces,
-          [activeId]: { ...ws, specId: id, specUrl: url || null },
+          [activeId]: { ...ws, specId: nextSpecId, specUrl: nextSpecUrl },
         };
       }
     }
 
     // Update runtime state AND workspace state immediately
-    // This prevents race conditions where the UI effect sees a mismatch
-    // between specId and workspace.specId
     set({
       spec,
-      specId: id,
-      specUrl: url || null,
+      specId: spec ? id : null,
+      specUrl: spec ? url || null : null,
       selected: null,
       operations: [],
       operationState: {},
       workspaces: nextWorkspaces,
     });
 
-    // Persist spec to SQLite
-    try {
-      const specContent = JSON.stringify(spec);
-      await sqlite.saveSpec(id, specContent);
-      console.log("Spec saved to database:", id);
-    } catch (error) {
-      console.error("Failed to save spec to database:", error);
+    // Persist spec to SQLite (only if valid)
+    if (spec && id) {
+      try {
+        const specContent = JSON.stringify(spec);
+        await sqlite.saveSpec(id, specContent);
+        console.log("Spec saved to database:", id);
+      } catch (error) {
+        console.error("Failed to save spec to database:", error);
+      }
     }
 
     // Persist workspace update to database
@@ -71,7 +79,7 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
         const dbWorkspace: DbWorkspace = {
           id: ws.id,
           name: ws.name,
-          active_spec_id: id,
+          active_spec_id: spec ? id : null,
           active_environment_id: ws.data.activeEnvironmentId,
           base_url: ws.data.baseUrl || null,
           selected_operation_key: ws.data.selectedKey || null,

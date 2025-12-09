@@ -51,8 +51,12 @@ export default function RequestBuilder() {
   }
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
-      <ResizablePanel defaultSize={50} minSize={30} className="border-r">
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+      <ResizablePanel
+        defaultSize={50}
+        minSize={30}
+        className="border-r overflow-hidden"
+      >
         <RequestForms
           method={method}
           path={path}
@@ -75,7 +79,7 @@ export default function RequestBuilder() {
         />
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel defaultSize={50}>
+      <ResizablePanel defaultSize={50} className="overflow-hidden">
         <Previews
           bodyData={bodyData}
           bodySchema={bodySchema}

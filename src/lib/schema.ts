@@ -4,6 +4,74 @@ import type { JSONSchema7 } from "json-schema";
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 import { isOAS31 } from "./openapi";
 
+/**
+ * Recursively simplifies the JSON Schema by flattening "anyOf" nullable types.
+ *
+ * Pattern: "anyOf": [{type: "string"}, {type: "null"}]
+ * Action: Flattens to { type: "string" } and removes "anyOf" key completely.
+ */
+function simplifySchema(schema: any): JSONSchema7 {
+  if (!schema || typeof schema !== "object") return schema;
+
+  // Clone to avoid mutating original
+  let s = { ...schema };
+
+  // 1. Handle Flattening Logic
+  if (Array.isArray(s.anyOf)) {
+    // Filter out 'null' types from the anyOf array
+    const nonNulls = s.anyOf.filter((sub: any) => sub.type !== "null");
+
+    // If we have exactly one real type left, flatten it
+    if (nonNulls.length === 1) {
+      const main = nonNulls[0];
+
+      // CRITICAL: Strictly remove 'anyOf' key so RJSF doesn't see it
+      delete s.anyOf;
+
+      // Merge the main type's properties into the parent
+      s = { ...s, ...main };
+
+      // Restore parent metadata if it exists (parent usually wins for params)
+      if (schema.title) s.title = schema.title;
+      if (schema.description) s.description = schema.description;
+      if (schema.default !== undefined) s.default = schema.default;
+    }
+  }
+
+  // 2. Recursion Logic (to handle nested objects/arrays)
+
+  // Recurse into 'properties' (for objects)
+  if (s.properties && typeof s.properties === "object") {
+    const newProps: any = {};
+    for (const key in s.properties) {
+      newProps[key] = simplifySchema(s.properties[key]);
+    }
+    s.properties = newProps;
+  }
+
+  // Recurse into 'items' (for arrays)
+  if (s.items) {
+    if (Array.isArray(s.items)) {
+      s.items = s.items.map((item: any) => simplifySchema(item));
+    } else {
+      s.items = simplifySchema(s.items);
+    }
+  }
+
+  // Recurse into combinators if they still exist
+  if (s.anyOf && Array.isArray(s.anyOf)) {
+    s.anyOf = s.anyOf.map((item: any) => simplifySchema(item));
+  }
+  if (s.oneOf && Array.isArray(s.oneOf)) {
+    s.oneOf = s.oneOf.map((item: any) => simplifySchema(item));
+  }
+  if (s.allOf && Array.isArray(s.allOf)) {
+    s.allOf = s.allOf.map((item: any) => simplifySchema(item));
+  }
+
+  return s as JSONSchema7;
+}
+
 export function getJsonBodySchema(
   spec: OpenAPIV3.Document | OpenAPIV3_1.Document,
   op: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject
@@ -19,7 +87,6 @@ export function getJsonBodySchema(
   if (!mt) return { schema: null, mediaType: null };
   const raw = mt.schema;
   if (!raw) {
-    // If we have a JSON media type but no schema, assume arbitrary JSON
     return {
       schema: { type: "object", additionalProperties: true } as JSONSchema7,
       mediaType: "application/json",
@@ -27,15 +94,14 @@ export function getJsonBodySchema(
   }
 
   if (isOAS31(spec)) {
-    return { schema: raw as JSONSchema7, mediaType: "application/json" };
+    return { schema: simplifySchema(raw), mediaType: "application/json" };
   }
 
-  // OAS 3.0 → JSON Schema (draft 2020-12 target)
   const converted = openapiSchemaToJsonSchema(
     raw as OpenAPIV3.SchemaObject
   ) as JSONSchema7;
 
-  return { schema: converted, mediaType: "application/json" };
+  return { schema: simplifySchema(converted), mediaType: "application/json" };
 }
 
 export function buildParamsSchema(
@@ -52,9 +118,11 @@ export function buildParamsSchema(
     if (p.in !== location) continue;
     const name = p.name;
     const schema = p.schema ?? { type: "string" as const };
+
+    // Apply simplification to parameters
+    const s: JSONSchema7 = simplifySchema(schema);
+
     // Treat enums as selects; map examples to default
-    const s: JSONSchema7 = { ...schema } as any;
-    // Convert OpenAPI exclusiveMaximum boolean to JSONSchema7 number format
     if (
       typeof s.exclusiveMaximum === "boolean" &&
       s.exclusiveMaximum &&

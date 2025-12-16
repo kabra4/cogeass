@@ -13,21 +13,25 @@ interface WorkspaceCreationFormProps {
   showCancel?: boolean;
 }
 
-export function WorkspaceCreationForm({ onSuccess, onCancel, showCancel }: WorkspaceCreationFormProps) {
+export function WorkspaceCreationForm({
+  onSuccess,
+  onCancel,
+  showCancel,
+}: WorkspaceCreationFormProps) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const createWorkspace = useAppStore(s => s.createWorkspace);
-  const setSpec = useAppStore(s => s.setSpec);
-  const setOperations = useAppStore(s => s.setOperations);
+  const createWorkspace = useAppStore((s) => s.createWorkspace);
+  const setSpec = useAppStore((s) => s.setSpec);
+  const setOperations = useAppStore((s) => s.setOperations);
 
   const handleCreate = async (specInput: string | File) => {
     setIsLoading(true);
     try {
       // 1. Load Spec (validates it)
-      const { spec, id } = await loadSpec(specInput);
+      const { spec, id, baseUrl } = await loadSpec(specInput);
 
       // 2. Create Workspace
       const wsName = name.trim() || "New Workspace";
@@ -35,13 +39,14 @@ export function WorkspaceCreationForm({ onSuccess, onCancel, showCancel }: Works
       createWorkspace(wsName);
 
       // 3. Set Spec on the new active workspace
-      const sourceUrl = typeof specInput === "string" ? specInput : specInput.name;
+      const sourceUrl =
+        typeof specInput === "string" ? specInput : specInput.name;
       setSpec(spec, id, sourceUrl);
       setOperations(listOperations(spec));
 
       toast.success("Workspace created successfully");
       setName("");
-      setUrl("");
+      setUrl(baseUrl);
       onSuccess?.();
     } catch (e) {
       console.error(e);
@@ -58,7 +63,7 @@ export function WorkspaceCreationForm({ onSuccess, onCancel, showCancel }: Works
         <Input
           id="ws-name"
           value={name}
-          onChange={e => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
           placeholder="e.g. My API"
         />
       </div>
@@ -68,13 +73,18 @@ export function WorkspaceCreationForm({ onSuccess, onCancel, showCancel }: Works
         <div className="flex gap-2">
           <Input
             value={url}
-            onChange={e => setUrl(e.target.value)}
+            onChange={(e) => setUrl(e.target.value)}
             placeholder="https://api.example.com/openapi.json"
             onKeyDown={(e) => {
-                if (e.key === "Enter" && url) handleCreate(url);
+              if (e.key === "Enter" && url) handleCreate(url);
             }}
           />
-          <Button size="icon" variant="outline" onClick={() => fileInputRef.current?.click()} title="Upload File">
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload File"
+          >
             <Upload className="h-4 w-4" />
           </Button>
           <input
@@ -92,13 +102,13 @@ export function WorkspaceCreationForm({ onSuccess, onCancel, showCancel }: Works
 
       <div className="flex justify-end gap-2 mt-2">
         {showCancel && (
-            <Button variant="outline" onClick={onCancel} disabled={isLoading}>
-                Cancel
-            </Button>
+          <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+            Cancel
+          </Button>
         )}
         <Button disabled={!url && !isLoading} onClick={() => handleCreate(url)}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Workspace
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create Workspace
         </Button>
       </div>
     </div>

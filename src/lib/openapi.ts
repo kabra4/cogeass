@@ -22,7 +22,7 @@ const isTauri = () =>
  */
 export async function loadSpec(
   input: string | File
-): Promise<{ spec: DerefSpec; id: string }> {
+): Promise<{ spec: DerefSpec; id: string; baseUrl: string }> {
   try {
     let specObject: any;
     let baseUrl: string | undefined;
@@ -100,7 +100,11 @@ export async function loadSpec(
 
       await saveSpec(specId, JSON.stringify(dereferencedDoc));
 
-      return { spec: dereferencedDoc, id: specId };
+      return {
+        spec: dereferencedDoc,
+        id: specId,
+        baseUrl: baseUrl || "",
+      };
     } catch (error) {
       console.error("Error during dereference:", error);
       throw error;

@@ -8,7 +8,6 @@ import type {
   SecurityScheme,
   HistoryItem,
   OperationRef,
-  OperationState,
 } from "./types";
 import * as sqlite from "@/lib/storage/sqliteRepository";
 import type { DbWorkspace } from "@/types/backend";

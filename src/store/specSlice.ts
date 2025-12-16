@@ -28,6 +28,17 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
       if (Array.isArray(servers) && servers.length > 0 && servers[0].url) {
         // We perform this update immediately to reflect in the UI
         get().setBaseUrl(servers[0].url);
+      } else if (
+        url &&
+        (url.startsWith("http://") || url.startsWith("https://"))
+      ) {
+        try {
+          const urlObject = new URL(url);
+          const newBaseUrl = `${urlObject.protocol}//${urlObject.host}`;
+          get().setBaseUrl(newBaseUrl);
+        } catch (e) {
+          console.warn("Could not construct base URL from spec URL", e);
+        }
       }
     }
 

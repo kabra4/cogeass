@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for the main window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "sql:default",
+    "sql:allow-load",
+    "sql:allow-close",
+    "sql:allow-execute",
+    "sql:allow-select",
+    "allow-load-spec",
+    "allow-make-request"
+  ]
+}

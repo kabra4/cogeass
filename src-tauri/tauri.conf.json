@@ -53,28 +53,14 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: http:;",
-      "capabilities": [
-        {
-          "identifier": "main-capability",
-          "description": "Main application capabilities",
-          "windows": ["main"],
-          "permissions": [
-            "core:default",
-            "core:window:default",
-            "sql:default",
-            "sql:allow-load",
-            "sql:allow-close",
-            "sql:allow-execute",
-            "sql:allow-select"
-          ]
-        }
-      ]
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: http:;"
     }
   },
   "plugins": {
     "sql": {
-      "preload": ["sqlite:cogeass.db"],
+      "preload": [
+        "sqlite:cogeass.db"
+      ],
       "scope": {
         "allowed": [
           {

@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-load-spec"
+description = "Allows loading OpenAPI specs from URLs via the backend"
+commands.allow = ["load_spec_from_url"]
+
+[[permission]]
+identifier = "allow-make-request"
+description = "Allows making HTTP requests via the backend"
+commands.allow = ["make_request"]

@@ -15,6 +15,7 @@ export interface DbWorkspace {
   base_url: string | null;
   selected_operation_key: string | null;
   sort_order: number;
+  spec_url: string | null;
 }
 
 /**

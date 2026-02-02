@@ -37,6 +37,7 @@ export const createRequestSlice: StateCreator<
           base_url: url,
           selected_operation_key: ws.data.selectedKey || null,
           sort_order: get().workspaceOrder.indexOf(wsId),
+          spec_url: ws.specUrl || null,
         };
 
         sqlite.updateWorkspace(dbWorkspace).catch((error) => {

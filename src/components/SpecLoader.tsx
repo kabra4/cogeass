@@ -17,10 +17,8 @@ export default function SpecLoader() {
 
   // Sync local state with persisted specUrl when workspace changes
   useEffect(() => {
-    if (specUrl && specUrl !== url) {
-      setUrl(specUrl);
-    }
-  }, [specUrl, url]);
+    setUrl(specUrl || "");
+  }, [specUrl]);
 
   async function doLoad(specInput: string | File) {
     setIsLoading(true);

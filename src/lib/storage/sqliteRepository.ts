@@ -43,8 +43,7 @@ export async function initDatabase(): Promise<void> {
         error instanceof Error ? error.message : String(error)
       );
       throw new Error(
-        `Database initialization failed: ${
-          error instanceof Error ? error.message : String(error)
+        `Database initialization failed: ${error instanceof Error ? error.message : String(error)
         }`
       );
     }
@@ -116,7 +115,8 @@ export async function updateWorkspace(workspace: DbWorkspace): Promise<void> {
          active_environment_id = ?,
          base_url = ?,
          selected_operation_key = ?,
-         sort_order = ?
+         sort_order = ?,
+         spec_url = ?
      WHERE id = ?`,
     [
       workspace.name,
@@ -125,6 +125,7 @@ export async function updateWorkspace(workspace: DbWorkspace): Promise<void> {
       workspace.base_url,
       workspace.selected_operation_key,
       workspace.sort_order,
+      workspace.spec_url,
       workspace.id,
     ]
   );

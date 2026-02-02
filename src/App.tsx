@@ -35,6 +35,7 @@ export default function App() {
   const {
     spec,
     specId,
+    specUrl,
     setSpec,
     setOperations,
     activePage,
@@ -47,6 +48,7 @@ export default function App() {
     useShallow((s) => ({
       spec: s.spec,
       specId: s.specId,
+      specUrl: s.specUrl,
       setSpec: s.setSpec,
       setOperations: s.setOperations,
       activePage: s.activePage,
@@ -57,6 +59,10 @@ export default function App() {
       createWorkspace: s.createWorkspace,
     }))
   );
+
+  // These are the runtime values set by __applyWorkspaceToRoot when workspace changes
+  const runtimeSpecId = specId;
+  const runtimeSpecUrl = specUrl;
 
   const [isAutoLoading, setIsAutoLoading] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
@@ -95,16 +101,16 @@ export default function App() {
   }, [hasHydrated, initializeAppState]);
 
   // Load the spec whenever the active workspace changes (or its specId changes)
+  // We use the runtime specId/specUrl from the store (set by __applyWorkspaceToRoot)
+  // as the source of truth for when to load a new spec
   useEffect(() => {
     if (!hasHydrated) return;
     if (!isInitialized) return;
     if (!activeWorkspaceId) return;
 
-    const ws = workspaces[activeWorkspaceId];
-    if (!ws) return;
-
     // Only load if we don't already have the correct spec loaded
-    if (ws.specId && spec && specId === ws.specId) {
+    // runtimeSpecId is what we SHOULD have, specId is what we currently have in memory
+    if (runtimeSpecId && spec && specId === runtimeSpecId) {
       return; // Already have the correct spec
     }
 
@@ -112,13 +118,14 @@ export default function App() {
     const load = async () => {
       setIsAutoLoading(true);
       try {
-        if (ws.specId) {
-          const dbSpec = await getSpec(ws.specId);
+        if (runtimeSpecId) {
+          const dbSpec = await getSpec(runtimeSpecId);
           if (!cancelled) {
             if (dbSpec) {
               try {
                 const specData = JSON.parse(dbSpec.spec_content);
-                setSpec(specData, ws.specId, ws.specUrl || undefined);
+                // Use runtimeSpecUrl which is set by __applyWorkspaceToRoot
+                setSpec(specData, runtimeSpecId, runtimeSpecUrl || undefined);
                 setOperations(listOperations(specData));
               } catch (parseError) {
                 console.error("Failed to parse spec content:", parseError);
@@ -131,7 +138,7 @@ export default function App() {
             } else {
               console.warn(
                 "Spec ID present but not found in database:",
-                ws.specId
+                runtimeSpecId
               );
               // @ts-expect-error setSpec handles nulls
               setSpec(null, null, null);
@@ -169,12 +176,12 @@ export default function App() {
     hasHydrated,
     isInitialized,
     activeWorkspaceId,
-    activeWorkspace?.specId || null,
+    runtimeSpecId,
+    runtimeSpecUrl,
     specId,
+    spec,
     setSpec,
     setOperations,
-    setIsAutoLoading,
-    workspaces,
   ]);
 
   const loadPetstore = async () => {

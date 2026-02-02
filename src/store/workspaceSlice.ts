@@ -81,7 +81,7 @@ export const createWorkspaceSlice: StateCreator<
           id: dbWs.id,
           name: dbWs.name,
           specId: dbWs.active_spec_id,
-          specUrl: null,
+          specUrl: dbWs.spec_url,
           data: emptyWorkspaceData(),
         };
         workspaceOrder.push(dbWs.id);
@@ -154,6 +154,7 @@ export const createWorkspaceSlice: StateCreator<
       base_url: ws.data.baseUrl || null,
       selected_operation_key: ws.data.selectedKey || null,
       sort_order: get().workspaceOrder.indexOf(id),
+      spec_url: ws.specUrl || null,
     };
 
     sqlite.updateWorkspace(dbWorkspace).catch((error) => {
@@ -298,11 +299,17 @@ export const createWorkspaceSlice: StateCreator<
         });
       }
 
+      console.log("setActiveWorkspace: loaded workspace data", {
+        id: data.workspace.id,
+        spec_url: data.workspace.spec_url,
+        active_spec_id: data.workspace.active_spec_id,
+      });
+
       const workspace: Workspace = {
         id: data.workspace.id,
         name: data.workspace.name,
         specId: data.workspace.active_spec_id,
-        specUrl: null,
+        specUrl: data.workspace.spec_url,
         data: {
           baseUrl: data.workspace.base_url || "",
           globalHeaders,
@@ -334,6 +341,12 @@ export const createWorkspaceSlice: StateCreator<
   __applyWorkspaceToRoot: (id) => {
     const ws = get().workspaces[id];
     if (!ws) return;
+
+    console.log("__applyWorkspaceToRoot: applying workspace", {
+      id: ws.id,
+      specId: ws.specId,
+      specUrl: ws.specUrl,
+    });
 
     const migratedAuth = {
       ...ws.data.auth,

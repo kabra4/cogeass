@@ -95,6 +95,7 @@ export const createSpecSlice: StateCreator<AppState, [], [], SpecSlice> = (
           base_url: ws.data.baseUrl || null,
           selected_operation_key: ws.data.selectedKey || null,
           sort_order: get().workspaceOrder.indexOf(activeId),
+          spec_url: spec ? url || null : null,
         };
 
         sqlite.updateWorkspace(dbWorkspace).catch((error) => {

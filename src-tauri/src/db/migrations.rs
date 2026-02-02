@@ -132,5 +132,12 @@ pub fn get_migrations() -> Vec<Migration> {
                    CREATE INDEX idx_history_timestamp ON history(timestamp);",
             kind: MigrationKind::Up,
         },
+        // Migration 11: Add spec_url column to workspaces
+        Migration {
+            version: 11,
+            description: "add spec_url column to workspaces",
+            sql: "ALTER TABLE workspaces ADD COLUMN spec_url TEXT;",
+            kind: MigrationKind::Up,
+        },
     ]
 }

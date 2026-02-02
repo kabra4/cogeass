@@ -167,6 +167,7 @@ export const createEnvironmentSlice: StateCreator<
           base_url: ws.data.baseUrl || null,
           selected_operation_key: ws.data.selectedKey || null,
           sort_order: get().workspaceOrder.indexOf(wsId),
+          spec_url: ws.specUrl || null,
         };
 
         sqlite.updateWorkspace(dbWorkspace).catch((error) => {

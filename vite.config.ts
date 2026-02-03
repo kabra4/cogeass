@@ -19,6 +19,9 @@ export default defineConfig({
     "process.env": process.env,
   },
   plugins: [react(), tailwindcss(), nodePolyfills()],
+  worker: {
+    format: "es",
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

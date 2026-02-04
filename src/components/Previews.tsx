@@ -5,7 +5,9 @@ import type { JSONSchema7 } from "json-schema";
 import type { ResponseHistoryEntry } from "@/store/types";
 import type { ResponseTimings } from "@/lib/http/HttpClient";
 import { Button } from "@/components/ui/button";
+import ResponseRenderer from "@/components/response/ResponseRenderer";
 import {
+  Activity,
   Check,
   History,
   Copy,
@@ -39,7 +41,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-type TabType = "body" | "curl" | "response" | "headers" | "history";
+type TabType = "body" | "curl" | "response" | "headers" | "timeline" | "history";
 
 interface PreviewsProps {
   bodyData: Record<string, unknown>;
@@ -255,6 +257,72 @@ function ResponseHistory({
   );
 }
 
+function RequestTimeline({
+  timings,
+  wireSizeBytes,
+  bodySizeBytes,
+}: {
+  timings: ResponseTimings;
+  wireSizeBytes?: number;
+  bodySizeBytes?: number;
+}) {
+  const phases = [
+    { label: "Prepare", ms: timings.prepareMs, color: "bg-zinc-500" },
+    { label: "DNS Lookup", ms: timings.dnsLookupMs, color: "bg-cyan-500" },
+    { label: "TCP Handshake", ms: timings.tcpConnectMs, color: "bg-orange-500" },
+    { label: "TLS Handshake", ms: timings.tlsHandshakeMs, color: "bg-purple-500" },
+    { label: "Waiting (TTFB)", ms: timings.ttfbMs, color: "bg-yellow-500" },
+    { label: "Download", ms: timings.downloadMs, color: "bg-green-500" },
+    { label: "Process", ms: timings.processMs, color: "bg-zinc-500" },
+  ];
+
+  const totalMs = timings.totalMs;
+  const maxMs = Math.max(...phases.map((p) => p.ms), 1);
+
+  return (
+    <div className="h-full overflow-auto p-4">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-medium">Response Time</span>
+        <span className="text-sm font-semibold font-mono">
+          {formatResponseTime(totalMs)}
+        </span>
+      </div>
+      <div className="border-t" />
+      <div className="mt-4 space-y-2">
+        {phases.map((phase) => {
+          const pct = totalMs > 0 ? (phase.ms / maxMs) * 100 : 0;
+          return (
+            <div key={phase.label} className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground w-[140px] shrink-0 text-right">
+                {phase.label}
+              </span>
+              <div className="flex-1 h-5 flex items-center">
+                <div
+                  className={cn("h-4 rounded-sm", phase.color)}
+                  style={{ width: `${Math.max(pct, 0.5)}%` }}
+                />
+              </div>
+              <span className="text-xs font-mono w-[80px] text-right shrink-0">
+                {formatResponseTime(phase.ms)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {bodySizeBytes !== undefined && (
+        <div className="mt-6 pt-4 border-t text-xs text-muted-foreground">
+          Response Size: {formatResponseSize(bodySizeBytes)}
+          {wireSizeBytes !== undefined && wireSizeBytes !== bodySizeBytes && (
+            <span className="ml-1">
+              ({formatResponseSize(wireSizeBytes)} on wire)
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Previews({
   bodyData,
   bodySchema,
@@ -379,6 +447,14 @@ export default function Previews({
       copySuccess: copyHeadersSuccess,
     },
     {
+      id: "timeline" as TabType,
+      label: "Timeline",
+      icon: Activity,
+      content: "",
+      language: "json",
+      copySuccess: false,
+    },
+    {
       id: "history" as TabType,
       label: "Request History",
       icon: History,
@@ -448,6 +524,18 @@ export default function Previews({
               entries={responseHistory ?? []}
               onClear={onClearHistory}
             />
+          ) : activeTab === "timeline" ? (
+            resp?.timings ? (
+              <RequestTimeline
+                timings={resp.timings}
+                wireSizeBytes={resp.wireSizeBytes}
+                bodySizeBytes={resp.bodySizeBytes}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                Send a request to see timeline
+              </div>
+            )
           ) : activeTab === "headers" ? (
             <div className="h-full relative">
               <HeadersTable headers={resp?.headers || {}} />
@@ -463,6 +551,33 @@ export default function Previews({
                   <Copy className="h-4 w-4" />
                 )}
               </Button>
+            </div>
+          ) : activeTab === "response" ? (
+            <div className="relative h-full">
+              {resp ? (
+                <ResponseRenderer
+                  resp={resp}
+                  theme={resolvedTheme === "dark" ? "dark" : "light"}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                  No response yet
+                </div>
+              )}
+              {resp && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 h-8 w-8 p-0 z-10"
+                  onClick={() => copyToClipboard(responseValue, activeTab)}
+                >
+                  {copyResponseSuccess ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
             </div>
           ) : (
             <div className="relative h-full">

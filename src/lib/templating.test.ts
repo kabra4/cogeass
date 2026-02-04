@@ -1,0 +1,149 @@
+import { describe, it, expect } from "vitest";
+import {
+  resolveVariables,
+  extractVariables,
+  extractAllVariables,
+  validateTemplate,
+} from "./templating";
+
+describe("resolveVariables", () => {
+  it("resolves simple string variables", () => {
+    const result = resolveVariables("Hello {{name}}", { name: "World" });
+    expect(result).toBe("Hello World");
+  });
+
+  it("resolves multiple variables in a string", () => {
+    const result = resolveVariables("{{greeting}} {{name}}!", {
+      greeting: "Hello",
+      name: "World",
+    });
+    expect(result).toBe("Hello World!");
+  });
+
+  it("handles variables with spaces around name", () => {
+    const result = resolveVariables("Hello {{ name }}", { name: "World" });
+    expect(result).toBe("Hello World");
+  });
+
+  it("leaves unresolved variables unchanged", () => {
+    const result = resolveVariables("Hello {{name}} {{unknown}}", {
+      name: "World",
+    });
+    expect(result).toBe("Hello World {{unknown}}");
+  });
+
+  it("resolves variables in objects", () => {
+    const result = resolveVariables(
+      { url: "{{baseUrl}}/api", token: "{{apiKey}}" },
+      { baseUrl: "https://example.com", apiKey: "secret123" }
+    );
+    expect(result).toEqual({
+      url: "https://example.com/api",
+      token: "secret123",
+    });
+  });
+
+  it("resolves variables in arrays", () => {
+    const result = resolveVariables(["{{a}}", "{{b}}", "{{c}}"], {
+      a: "1",
+      b: "2",
+      c: "3",
+    });
+    expect(result).toEqual(["1", "2", "3"]);
+  });
+
+  it("resolves variables in nested objects", () => {
+    const result = resolveVariables(
+      {
+        outer: {
+          inner: "{{value}}",
+        },
+      },
+      { value: "nested" }
+    );
+    expect(result).toEqual({ outer: { inner: "nested" } });
+  });
+
+  it("handles null and undefined", () => {
+    expect(resolveVariables(null, { a: "1" })).toBe(null);
+    expect(resolveVariables(undefined, { a: "1" })).toBe(undefined);
+  });
+
+  it("passes through primitives unchanged", () => {
+    expect(resolveVariables(42, { a: "1" })).toBe(42);
+    expect(resolveVariables(true, { a: "1" })).toBe(true);
+  });
+});
+
+describe("extractVariables", () => {
+  it("extracts single variable", () => {
+    expect(extractVariables("Hello {{name}}")).toEqual(["name"]);
+  });
+
+  it("extracts multiple variables", () => {
+    const result = extractVariables("{{a}} and {{b}} and {{c}}");
+    expect(result).toEqual(["a", "b", "c"]);
+  });
+
+  it("extracts unique variables only", () => {
+    const result = extractVariables("{{a}} {{a}} {{b}}");
+    expect(result).toEqual(["a", "b"]);
+  });
+
+  it("handles variables with spaces", () => {
+    expect(extractVariables("{{ name }}")).toEqual(["name"]);
+  });
+
+  it("returns empty array for no variables", () => {
+    expect(extractVariables("no variables here")).toEqual([]);
+  });
+});
+
+describe("extractAllVariables", () => {
+  it("extracts from nested objects", () => {
+    const result = extractAllVariables({
+      a: "{{var1}}",
+      b: { c: "{{var2}}" },
+    });
+    expect(result).toContain("var1");
+    expect(result).toContain("var2");
+  });
+
+  it("extracts from arrays", () => {
+    const result = extractAllVariables(["{{a}}", "{{b}}"]);
+    expect(result).toEqual(["a", "b"]);
+  });
+
+  it("extracts variables from object keys", () => {
+    const result = extractAllVariables({ "{{key}}": "value" });
+    expect(result).toContain("key");
+  });
+
+  it("handles null and undefined", () => {
+    expect(extractAllVariables(null)).toEqual([]);
+    expect(extractAllVariables(undefined)).toEqual([]);
+  });
+});
+
+describe("validateTemplate", () => {
+  it("returns valid for fully resolved templates", () => {
+    const result = validateTemplate("Hello {{name}}", { name: "World" });
+    expect(result.isValid).toBe(true);
+    expect(result.missingVariables).toEqual([]);
+  });
+
+  it("returns invalid with missing variables", () => {
+    const result = validateTemplate("{{a}} {{b}} {{c}}", { a: "1" });
+    expect(result.isValid).toBe(false);
+    expect(result.missingVariables).toEqual(["b", "c"]);
+  });
+
+  it("validates nested structures", () => {
+    const result = validateTemplate(
+      { url: "{{baseUrl}}", headers: { auth: "{{token}}" } },
+      { baseUrl: "http://example.com" }
+    );
+    expect(result.isValid).toBe(false);
+    expect(result.missingVariables).toEqual(["token"]);
+  });
+});

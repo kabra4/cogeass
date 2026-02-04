@@ -1,5 +1,6 @@
 import { toCurl, type Method } from "./curl";
 import { httpClient } from "@/lib/http";
+import type { StreamEvent } from "@/lib/http/HttpClient";
 
 export function buildCurlFromParts(parts: {
   baseUrl: string;
@@ -75,6 +76,7 @@ export type SendParts = {
   mediaType?: string | null;
   timeoutMs?: number;
   signal?: AbortSignal;
+  onStreamEvent?: (event: StreamEvent) => void;
 };
 
 export async function send(parts: SendParts) {
@@ -105,5 +107,6 @@ export async function send(parts: SendParts) {
     body,
     timeoutMs: parts.timeoutMs,
     signal: parts.signal,
+    onStreamEvent: parts.onStreamEvent,
   });
 }

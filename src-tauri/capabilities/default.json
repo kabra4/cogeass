@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "core:window:default",
+    "core:event:default",
     "sql:default",
     "sql:allow-load",
     "sql:allow-close",

@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import type { JSONSchema7 } from "json-schema";
 import type { ResponseHistoryEntry } from "@/store/types";
-import type { ResponseTimings } from "@/lib/http/HttpClient";
+import type { ResponseTimings, StreamEvent } from "@/lib/http/HttpClient";
 import { Button } from "@/components/ui/button";
-import ResponseRenderer from "@/components/response/ResponseRenderer";
+import ResponseRenderer, { SseResponseView } from "@/components/response/ResponseRenderer";
 import {
   Activity,
   Check,
@@ -17,6 +17,7 @@ import {
   ArrowLeftRight,
   List,
   Trash2,
+  Radio,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -60,10 +61,13 @@ interface PreviewsProps {
     timings?: ResponseTimings;
     wireSizeBytes?: number;
     bodySizeBytes?: number;
+    streamEvents?: StreamEvent[];
     responseTimeMs?: number;
     responseSizeBytes?: number;
   } | null;
   isLoading?: boolean;
+  isStreaming?: boolean;
+  liveStreamEvents?: StreamEvent[];
   activeTab?: TabType;
   onTabChange?: (tab: TabType) => void;
   responseHistory?: ResponseHistoryEntry[];
@@ -323,12 +327,71 @@ function RequestTimeline({
   );
 }
 
+function StreamEventsView({
+  events,
+  isStreaming = false,
+}: {
+  events: StreamEvent[];
+  isStreaming?: boolean;
+}) {
+  if (events.length === 0 && !isStreaming) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        No stream events
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-auto p-4">
+      {isStreaming && (
+        <div className="flex items-center gap-2 mb-3 text-sm text-green-600 dark:text-green-500">
+          <Radio className="h-3.5 w-3.5 animate-pulse" />
+          <span>Streaming... ({events.length} events)</span>
+        </div>
+      )}
+      <div className="space-y-1">
+        {events.map((event) => (
+          <div
+            key={event.eventId}
+            className="flex items-start gap-3 py-1.5 px-2 rounded text-sm font-mono hover:bg-accent/50"
+          >
+            <span className="text-muted-foreground w-8 shrink-0 text-right">
+              #{event.eventId}
+            </span>
+            <span
+              className={cn(
+                "px-1.5 py-0.5 rounded text-xs font-semibold shrink-0",
+                event.eventType === "message"
+                  ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                  : "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+              )}
+            >
+              {event.eventType}
+            </span>
+            <span className="flex-1 truncate text-xs">
+              {event.data.length > 120
+                ? event.data.slice(0, 120) + "..."
+                : event.data}
+            </span>
+            <span className="text-xs text-muted-foreground shrink-0">
+              +{formatResponseTime(event.elapsedMs)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Previews({
   bodyData,
   bodySchema,
   curl,
   resp,
   isLoading = false,
+  isStreaming = false,
+  liveStreamEvents = [],
   activeTab: controlledActiveTab,
   onTabChange,
   responseHistory,
@@ -476,7 +539,14 @@ export default function Previews({
             <h3 className="text-sm font-medium">{currentTab.label}</h3>
             {(activeTab === "response" || activeTab === "headers") && (
               <div className="text-xs flex items-center gap-3">
-                {isLoading ? (
+                {isStreaming ? (
+                  <div className="flex items-center gap-2">
+                    <Radio className="h-3.5 w-3.5 animate-pulse text-green-600 dark:text-green-500" />
+                    <span className="text-green-600 dark:text-green-500">
+                      Streaming... ({liveStreamEvents.length} events)
+                    </span>
+                  </div>
+                ) : isLoading ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     <span className="text-muted-foreground">Sending...</span>
@@ -525,12 +595,28 @@ export default function Previews({
               onClear={onClearHistory}
             />
           ) : activeTab === "timeline" ? (
-            resp?.timings ? (
-              <RequestTimeline
-                timings={resp.timings}
-                wireSizeBytes={resp.wireSizeBytes}
-                bodySizeBytes={resp.bodySizeBytes}
-              />
+            resp?.timings || isStreaming || liveStreamEvents.length > 0 || (resp?.streamEvents && resp.streamEvents.length > 0) ? (
+              <div className="h-full overflow-auto">
+                {resp?.timings && (
+                  <RequestTimeline
+                    timings={resp.timings}
+                    wireSizeBytes={resp.wireSizeBytes}
+                    bodySizeBytes={resp.bodySizeBytes}
+                  />
+                )}
+                {(isStreaming || liveStreamEvents.length > 0 || (resp?.streamEvents && resp.streamEvents.length > 0)) && (
+                  <>
+                    {resp?.timings && <div className="border-t mx-4" />}
+                    <div className="px-4 py-3">
+                      <span className="text-sm font-medium">Stream Events</span>
+                    </div>
+                    <StreamEventsView
+                      events={isStreaming ? liveStreamEvents : (resp?.streamEvents ?? [])}
+                      isStreaming={isStreaming}
+                    />
+                  </>
+                )}
+              </div>
             ) : (
               <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
                 Send a request to see timeline
@@ -554,7 +640,12 @@ export default function Previews({
             </div>
           ) : activeTab === "response" ? (
             <div className="relative h-full">
-              {resp ? (
+              {isStreaming && liveStreamEvents.length > 0 ? (
+                <SseResponseView
+                  events={liveStreamEvents}
+                  theme={resolvedTheme === "dark" ? "dark" : "light"}
+                />
+              ) : resp ? (
                 <ResponseRenderer
                   resp={resp}
                   theme={resolvedTheme === "dark" ? "dark" : "light"}
@@ -564,7 +655,7 @@ export default function Previews({
                   No response yet
                 </div>
               )}
-              {resp && (
+              {resp && !isStreaming && !(resp.streamEvents && resp.streamEvents.length > 0) && (
                 <Button
                   variant="ghost"
                   size="sm"

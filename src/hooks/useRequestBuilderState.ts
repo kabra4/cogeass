@@ -5,6 +5,7 @@ import { send, buildCurlFromParts } from "@/lib/request";
 import { resolveOperationAuth } from "@/lib/auth";
 import { resolveVariables } from "@/lib/templating";
 import { debounce } from "@/lib/utils";
+import type { StreamEvent } from "@/lib/http/HttpClient";
 
 // Create stable empty object references to prevent infinite loops
 const EMPTY_OPERATION_STATE = {};
@@ -55,6 +56,8 @@ export function useRequestBuilderState() {
     (s) => s.operationState[operationKey]?.response || null
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [liveStreamEvents, setLiveStreamEvents] = useState<StreamEvent[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const method = (selected?.method ?? "get").toUpperCase();
@@ -191,6 +194,8 @@ export function useRequestBuilderState() {
     abortControllerRef.current = abortController;
 
     setIsLoading(true);
+    setLiveStreamEvents([]);
+    setIsStreaming(false);
     // Normalize header keys to lowercase to avoid case-sensitive duplicates
     const norm = (obj: Record<string, string>) =>
       Object.fromEntries(
@@ -220,6 +225,12 @@ export function useRequestBuilderState() {
         mediaType: bodySchema.mediaType ?? undefined,
         timeoutMs: 600000,
         signal: abortController.signal,
+        onStreamEvent: (event) => {
+          if (!abortController.signal.aborted) {
+            setIsStreaming(true);
+            setLiveStreamEvents((prev) => [...prev, event]);
+          }
+        },
       });
 
       // Only set response if this request wasn't aborted
@@ -234,7 +245,9 @@ export function useRequestBuilderState() {
           timings: r.timings,
           wireSizeBytes: r.wireSizeBytes,
           bodySizeBytes: r.bodySizeBytes,
+          streamEvents: r.streamEvents,
         };
+        setIsStreaming(false);
         setOperationResponse(operationKey, responseData);
         addResponseHistoryEntry(operationKey, responseData);
 
@@ -288,6 +301,7 @@ export function useRequestBuilderState() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
+      setIsStreaming(false);
     }
   }, []);
 
@@ -336,6 +350,8 @@ export function useRequestBuilderState() {
     resp,
     appliedAuth,
     isLoading,
+    isStreaming,
+    liveStreamEvents,
     pathData,
     queryData,
     headerData,

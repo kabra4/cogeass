@@ -1,6 +1,7 @@
 // src/lib/http/TauriHttpClient.ts
 import { invoke } from "@tauri-apps/api/core";
-import type { HttpClient, HttpResponse } from "./HttpClient";
+import { listen } from "@tauri-apps/api/event";
+import type { HttpClient, HttpResponse, StreamEvent } from "./HttpClient";
 
 type TauriTimings = {
   prepare_ms: number;
@@ -13,6 +14,15 @@ type TauriTimings = {
   total_ms: number;
 };
 
+type TauriSseEvent = {
+  session_id: string;
+  event_id: number;
+  event_type: string;
+  data: string;
+  timestamp: number;
+  elapsed_ms: number;
+};
+
 type TauriResponse = {
   status: number;
   status_text: string;
@@ -21,16 +31,36 @@ type TauriResponse = {
   timings: TauriTimings;
   wire_size_bytes: number;
   body_size_bytes: number;
+  session_id: string | null;
 };
 
 class TauriHttpClient implements HttpClient {
   async send(parts: Parameters<HttpClient["send"]>[0]): Promise<HttpResponse> {
+    const sessionId = parts.sessionId ?? crypto.randomUUID();
+    const events: StreamEvent[] = [];
+
+    // Set up SSE event listener before invoking the command
+    const unlisten = await listen<TauriSseEvent>("sse_event", (event) => {
+      if (event.payload.session_id === sessionId) {
+        const streamEvent: StreamEvent = {
+          eventId: event.payload.event_id,
+          eventType: event.payload.event_type,
+          data: event.payload.data,
+          timestamp: event.payload.timestamp,
+          elapsedMs: event.payload.elapsed_ms,
+        };
+        events.push(streamEvent);
+        parts.onStreamEvent?.(streamEvent);
+      }
+    });
+
     try {
       const tauriResponse = await invoke<TauriResponse>("make_request", {
         method: parts.method,
         url: parts.url,
         headers: parts.headers,
         body: parts.body,
+        sessionId,
       });
 
       let json: unknown = null;
@@ -58,6 +88,8 @@ class TauriHttpClient implements HttpClient {
         },
         wireSizeBytes: tauriResponse.wire_size_bytes,
         bodySizeBytes: tauriResponse.body_size_bytes,
+        streamEvents: events.length > 0 ? events : undefined,
+        sessionId: tauriResponse.session_id ?? undefined,
       };
     } catch (error) {
       const errorMsg =
@@ -69,6 +101,8 @@ class TauriHttpClient implements HttpClient {
         bodyText: errorMsg,
         bodyJson: { error: errorMsg },
       };
+    } finally {
+      unlisten();
     }
   }
 }

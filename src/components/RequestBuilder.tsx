@@ -23,6 +23,8 @@ export default function RequestBuilder() {
     curl,
     resp,
     isLoading,
+    isStreaming,
+    liveStreamEvents,
     appliedAuth,
     pathData,
     queryData,
@@ -105,6 +107,8 @@ export default function RequestBuilder() {
           curl={curl}
           resp={resp}
           isLoading={isLoading}
+          isStreaming={isStreaming}
+          liveStreamEvents={liveStreamEvents}
           activeTab={activePreviewTab}
           onTabChange={setActivePreviewTab}
           responseHistory={responseHistory}

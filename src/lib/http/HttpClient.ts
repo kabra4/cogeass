@@ -10,6 +10,14 @@ export type ResponseTimings = {
   totalMs: number;
 };
 
+export type StreamEvent = {
+  eventId: number;
+  eventType: string;
+  data: string;
+  timestamp: number;
+  elapsedMs: number;
+};
+
 export interface HttpResponse {
   status: number;
   statusText: string;
@@ -19,6 +27,8 @@ export interface HttpResponse {
   timings?: ResponseTimings;
   wireSizeBytes?: number;
   bodySizeBytes?: number;
+  streamEvents?: StreamEvent[];
+  sessionId?: string;
 }
 
 export interface HttpClient {
@@ -29,5 +39,7 @@ export interface HttpClient {
     body?: string;
     signal?: AbortSignal;
     timeoutMs?: number;
+    sessionId?: string;
+    onStreamEvent?: (event: StreamEvent) => void;
   }): Promise<HttpResponse>;
 }

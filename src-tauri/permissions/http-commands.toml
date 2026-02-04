@@ -7,3 +7,18 @@ commands.allow = ["load_spec_from_url"]
 identifier = "allow-make-request"
 description = "Allows making HTTP requests via the backend"
 commands.allow = ["make_request"]
+
+[[permission]]
+identifier = "allow-open-session"
+description = "Allows opening network sessions via the session manager"
+commands.allow = ["open_session"]
+
+[[permission]]
+identifier = "allow-close-session"
+description = "Allows closing network sessions"
+commands.allow = ["close_session"]
+
+[[permission]]
+identifier = "allow-send-message"
+description = "Allows sending messages to active sessions"
+commands.allow = ["send_message"]

@@ -5,6 +5,7 @@
 
 mod commands;
 mod db;
+mod network;
 
 fn main() {
     tauri::Builder::default()
@@ -14,9 +15,13 @@ fn main() {
                 .add_migrations("sqlite:cogeass.db", db::get_migrations())
                 .build(),
         )
+        .manage(network::session::SessionManager::new())
         .invoke_handler(tauri::generate_handler![
             commands::http::load_spec_from_url,
             commands::http::make_request,
+            commands::session::open_session,
+            commands::session::close_session,
+            commands::session::send_message,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

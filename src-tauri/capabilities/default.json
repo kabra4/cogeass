@@ -15,6 +15,9 @@
     "sql:allow-execute",
     "sql:allow-select",
     "allow-load-spec",
-    "allow-make-request"
+    "allow-make-request",
+    "allow-open-session",
+    "allow-close-session",
+    "allow-send-message"
   ]
 }

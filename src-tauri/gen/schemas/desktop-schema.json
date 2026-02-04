@@ -387,6 +387,12 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Allows closing network sessions",
+          "type": "string",
+          "const": "allow-close-session",
+          "markdownDescription": "Allows closing network sessions"
+        },
+        {
           "description": "Allows loading OpenAPI specs from URLs via the backend",
           "type": "string",
           "const": "allow-load-spec",
@@ -397,6 +403,18 @@
           "type": "string",
           "const": "allow-make-request",
           "markdownDescription": "Allows making HTTP requests via the backend"
+        },
+        {
+          "description": "Allows opening network sessions via the session manager",
+          "type": "string",
+          "const": "allow-open-session",
+          "markdownDescription": "Allows opening network sessions via the session manager"
+        },
+        {
+          "description": "Allows sending messages to active sessions",
+          "type": "string",
+          "const": "allow-send-message",
+          "markdownDescription": "Allows sending messages to active sessions"
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",

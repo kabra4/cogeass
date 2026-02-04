@@ -149,6 +149,14 @@ export interface ResponseHistorySlice {
   clearResponseHistory: (operationKey: string) => Promise<void>;
 }
 
+export type NetworkSession = {
+  id: string;
+  protocol: "Http" | "Sse" | "WebSocket" | "Grpc";
+  status: "idle" | "connecting" | "active" | "closed" | "error";
+  startedAt: number;
+  closedAt?: number;
+};
+
 // Persisted per-workspace data
 // Note: operationState is NOT persisted in localStorage anymore
 // It's stored in IndexedDB and lazy-loaded per operation

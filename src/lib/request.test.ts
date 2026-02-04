@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildUrl } from "./request";
+import { buildUrl, buildCurlFromParts } from "./request";
 
 describe("buildUrl", () => {
   describe("basic URL construction", () => {
@@ -356,6 +356,220 @@ describe("buildUrl", () => {
         pathParams: { name: "日本語" },
       });
       expect(result).toContain("%E6%97%A5%E6%9C%AC%E8%AA%9E");
+    });
+  });
+});
+
+describe("buildCurlFromParts", () => {
+  describe("basic requests", () => {
+    it("builds curl for GET request", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "GET",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+      });
+      expect(result).toContain("curl");
+      expect(result).toContain("-X GET");
+      expect(result).toContain("https://api.example.com/users");
+    });
+
+    it("builds curl for POST request", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "POST",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+      });
+      expect(result).toContain("-X POST");
+    });
+  });
+
+  describe("with path parameters", () => {
+    it("replaces path parameters in URL", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users/{id}",
+        method: "GET",
+        pathParams: { id: "123" },
+        queryParams: {},
+        headerParams: {},
+      });
+      expect(result).toContain("https://api.example.com/users/123");
+    });
+
+    it("handles numeric path parameters", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/items/{index}",
+        method: "GET",
+        pathParams: { index: 42 },
+        queryParams: {},
+        headerParams: {},
+      });
+      expect(result).toContain("https://api.example.com/items/42");
+    });
+  });
+
+  describe("with query parameters", () => {
+    it("appends query parameters to URL", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "GET",
+        pathParams: {},
+        queryParams: { page: 1, limit: 10 },
+        headerParams: {},
+      });
+      expect(result).toContain("page=1");
+      expect(result).toContain("limit=10");
+    });
+  });
+
+  describe("with headers", () => {
+    it("includes custom headers", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "GET",
+        pathParams: {},
+        queryParams: {},
+        headerParams: { "X-Api-Key": "secret123" },
+      });
+      expect(result).toContain("-H");
+      expect(result).toContain("X-Api-Key: secret123");
+    });
+
+    it("includes multiple headers", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "GET",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {
+          Accept: "application/json",
+          "X-Custom": "value",
+        },
+      });
+      expect(result).toContain("Accept: application/json");
+      expect(result).toContain("X-Custom: value");
+    });
+  });
+
+  describe("with body", () => {
+    it("includes JSON body", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "POST",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        body: { name: "John", email: "john@example.com" },
+      });
+      expect(result).toContain("-d");
+      expect(result).toContain("name");
+      expect(result).toContain("John");
+    });
+
+    it("includes string body", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/webhook",
+        method: "POST",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        body: "raw text body",
+      });
+      expect(result).toContain("-d");
+      expect(result).toContain("raw text body");
+    });
+  });
+
+  describe("with media type", () => {
+    it("includes Content-Type header from mediaType", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "POST",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        mediaType: "application/json",
+      });
+      expect(result).toContain("Content-Type: application/json");
+    });
+
+    it("handles null mediaType", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "GET",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        mediaType: null,
+      });
+      expect(result).not.toContain("Content-Type");
+    });
+  });
+
+  describe("with auth header", () => {
+    it("includes Authorization header from authHeader", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "GET",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        authHeader: "Bearer token123",
+      });
+      expect(result).toContain("Authorization: Bearer token123");
+    });
+
+    it("handles null authHeader", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users",
+        method: "GET",
+        pathParams: {},
+        queryParams: {},
+        headerParams: {},
+        authHeader: null,
+      });
+      expect(result).not.toContain("Authorization");
+    });
+  });
+
+  describe("combined scenarios", () => {
+    it("builds complete curl with all options", () => {
+      const result = buildCurlFromParts({
+        baseUrl: "https://api.example.com",
+        path: "/users/{id}",
+        method: "PUT",
+        pathParams: { id: "123" },
+        queryParams: { notify: true },
+        headerParams: { "X-Request-Id": "abc123" },
+        body: { name: "Updated Name" },
+        mediaType: "application/json",
+        authHeader: "Bearer token123",
+      });
+
+      expect(result).toContain("curl");
+      expect(result).toContain("-X PUT");
+      expect(result).toContain("https://api.example.com/users/123");
+      expect(result).toContain("notify=true");
+      expect(result).toContain("X-Request-Id: abc123");
+      expect(result).toContain("Authorization: Bearer token123");
+      expect(result).toContain("Content-Type: application/json");
+      expect(result).toContain("-d");
     });
   });
 });

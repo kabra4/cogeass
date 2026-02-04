@@ -6,7 +6,7 @@ import type { ResponseHistoryEntry } from "@/store/types";
 import { Button } from "@/components/ui/button";
 import {
   Check,
-  Clock,
+  History,
   Copy,
   Loader2,
   FileJson,
@@ -38,7 +38,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-type TabType = "body" | "curl" | "response" | "headers" | "timeline";
+type TabType = "body" | "curl" | "response" | "headers" | "history";
 
 interface PreviewsProps {
   bodyData: Record<string, unknown>;
@@ -167,7 +167,7 @@ function HeadersTable({ headers }: { headers: Record<string, string> }) {
   );
 }
 
-function ResponseTimeline({
+function ResponseHistory({
   entries,
   onClear,
 }: {
@@ -375,9 +375,9 @@ export default function Previews({
       copySuccess: copyHeadersSuccess,
     },
     {
-      id: "timeline" as TabType,
-      label: "Timeline",
-      icon: Clock,
+      id: "history" as TabType,
+      label: "Request History",
+      icon: History,
       content: "",
       language: "json",
       copySuccess: false,
@@ -434,8 +434,8 @@ export default function Previews({
 
         {/* Content area */}
         <div className="relative flex-1 min-h-0">
-          {activeTab === "timeline" ? (
-            <ResponseTimeline
+          {activeTab === "history" ? (
+            <ResponseHistory
               entries={responseHistory ?? []}
               onClear={onClearHistory}
             />

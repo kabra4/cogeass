@@ -9,7 +9,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 
-type TabType = "body" | "curl" | "response" | "headers" | "timeline";
+type TabType = "body" | "curl" | "response" | "headers" | "history";
 
 export default function RequestBuilder() {
   const [activePreviewTab, setActivePreviewTab] = useState<TabType>("body");
@@ -49,9 +49,9 @@ export default function RequestBuilder() {
   const loadResponseHistory = useAppStore((s) => s.loadResponseHistory);
   const clearResponseHistory = useAppStore((s) => s.clearResponseHistory);
 
-  // Lazy-load response history when switching to timeline tab
+  // Lazy-load response history when switching to history tab
   useEffect(() => {
-    if (activePreviewTab === "timeline" && operationKey) {
+    if (activePreviewTab === "history" && operationKey) {
       loadResponseHistory(operationKey);
     }
   }, [activePreviewTab, operationKey, loadResponseHistory]);

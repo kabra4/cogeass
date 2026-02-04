@@ -231,8 +231,9 @@ export function useRequestBuilderState() {
           bodyText: r.bodyText,
           bodyJson: r.bodyJson,
           timestamp: Date.now(),
-          responseTimeMs: r.responseTimeMs,
-          responseSizeBytes: r.responseSizeBytes,
+          timings: r.timings,
+          wireSizeBytes: r.wireSizeBytes,
+          bodySizeBytes: r.bodySizeBytes,
         };
         setOperationResponse(operationKey, responseData);
         addResponseHistoryEntry(operationKey, responseData);

@@ -59,8 +59,18 @@ class FetchHttpClient implements HttpClient {
       headers: Object.fromEntries(res.headers.entries()),
       bodyText: text,
       bodyJson: json,
-      responseTimeMs,
-      responseSizeBytes,
+      timings: {
+        prepareMs: 0,
+        dnsLookupMs: 0,
+        tcpConnectMs: 0,
+        tlsHandshakeMs: 0,
+        ttfbMs: 0,
+        downloadMs: 0,
+        processMs: 0,
+        totalMs: responseTimeMs,
+      },
+      wireSizeBytes: responseSizeBytes,
+      bodySizeBytes: responseSizeBytes,
     };
   }
 }

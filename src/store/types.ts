@@ -1,4 +1,5 @@
 import type { DerefSpec } from "@/lib/openapi";
+import type { ResponseTimings } from "@/lib/http/HttpClient";
 import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 
 export type OperationRef = {
@@ -36,6 +37,10 @@ export type OperationState = {
     bodyText: string;
     bodyJson: unknown;
     timestamp: number;
+    timings?: ResponseTimings;
+    wireSizeBytes?: number;
+    bodySizeBytes?: number;
+    // Backward compat with persisted data
     responseTimeMs?: number;
     responseSizeBytes?: number;
   };

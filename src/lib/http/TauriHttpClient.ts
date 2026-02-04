@@ -2,13 +2,25 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { HttpClient, HttpResponse } from "./HttpClient";
 
+type TauriTimings = {
+  prepare_ms: number;
+  dns_lookup_ms: number;
+  tcp_connect_ms: number;
+  tls_handshake_ms: number;
+  ttfb_ms: number;
+  download_ms: number;
+  process_ms: number;
+  total_ms: number;
+};
+
 type TauriResponse = {
   status: number;
   status_text: string;
   headers: Record<string, string>;
   body_text: string;
-  response_time_ms: number;
-  response_size_bytes: number;
+  timings: TauriTimings;
+  wire_size_bytes: number;
+  body_size_bytes: number;
 };
 
 class TauriHttpClient implements HttpClient {
@@ -34,8 +46,18 @@ class TauriHttpClient implements HttpClient {
         headers: tauriResponse.headers,
         bodyText: tauriResponse.body_text,
         bodyJson: json,
-        responseTimeMs: tauriResponse.response_time_ms,
-        responseSizeBytes: tauriResponse.response_size_bytes,
+        timings: {
+          prepareMs: tauriResponse.timings.prepare_ms,
+          dnsLookupMs: tauriResponse.timings.dns_lookup_ms,
+          tcpConnectMs: tauriResponse.timings.tcp_connect_ms,
+          tlsHandshakeMs: tauriResponse.timings.tls_handshake_ms,
+          ttfbMs: tauriResponse.timings.ttfb_ms,
+          downloadMs: tauriResponse.timings.download_ms,
+          processMs: tauriResponse.timings.process_ms,
+          totalMs: tauriResponse.timings.total_ms,
+        },
+        wireSizeBytes: tauriResponse.wire_size_bytes,
+        bodySizeBytes: tauriResponse.body_size_bytes,
       };
     } catch (error) {
       const errorMsg =

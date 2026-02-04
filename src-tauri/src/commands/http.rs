@@ -1,15 +1,27 @@
 use serde::Serialize;
 use std::collections::HashMap;
 
-// This struct will be serialized and returned to the frontend.
+#[derive(Serialize)]
+pub struct ResponseTimings {
+    pub prepare_ms: f64,
+    pub dns_lookup_ms: f64,
+    pub tcp_connect_ms: f64,
+    pub tls_handshake_ms: f64,
+    pub ttfb_ms: f64,
+    pub download_ms: f64,
+    pub process_ms: f64,
+    pub total_ms: f64,
+}
+
 #[derive(Serialize)]
 pub struct BackendResponse {
     pub status: u16,
     pub status_text: String,
     pub headers: HashMap<String, String>,
     pub body_text: String,
-    pub response_time_ms: u64,
-    pub response_size_bytes: usize,
+    pub timings: ResponseTimings,
+    pub wire_size_bytes: usize,
+    pub body_size_bytes: usize,
 }
 
 #[tauri::command]
@@ -29,6 +41,8 @@ pub async fn make_request(
     headers: HashMap<String, String>,
     body: Option<String>,
 ) -> Result<BackendResponse, String> {
+    let t0 = std::time::Instant::now();
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(600))
         .build()
@@ -57,11 +71,12 @@ pub async fn make_request(
         request_builder = request_builder.body(body_content);
     }
 
-    // Start timing the request
-    let start_time = std::time::Instant::now();
+    let prepare_ms = t0.elapsed().as_secs_f64() * 1000.0;
 
-    // Send the request and await the response
+    // Send the request and await the response (TTFB includes DNS+TCP+TLS+server)
+    let t1 = std::time::Instant::now();
     let response = request_builder.send().await.map_err(|e| e.to_string())?;
+    let ttfb_ms = t1.elapsed().as_secs_f64() * 1000.0;
 
     // Extract status code and text
     let status = response.status().as_u16();
@@ -78,19 +93,19 @@ pub async fn make_request(
         response_headers.insert(key.as_str().to_string(), value_str);
     }
 
-    // Calculate response time in milliseconds
-    let response_time_ms = start_time.elapsed().as_millis() as u64;
-
-    // Get the raw response body bytes (compressed if Content-Encoding is present)
+    // Download body bytes
+    let t2 = std::time::Instant::now();
     let body_bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    let download_ms = t2.elapsed().as_secs_f64() * 1000.0;
 
-    // Track the compressed size (what was actually transmitted over the network)
-    let response_size_bytes = body_bytes.len();
+    // Wire size = raw bytes received (before decompression)
+    let wire_size_bytes = body_bytes.len();
 
     // Check if the response is compressed by looking at the headers we captured
     let content_encoding = response_headers.get("content-encoding");
 
-    // Decompress if necessary
+    // Decompress if necessary, measuring process time
+    let t3 = std::time::Instant::now();
     let body_text = if let Some(encoding) = content_encoding {
         let decompressed_bytes = match encoding.to_lowercase().as_str() {
             "gzip" => {
@@ -127,6 +142,21 @@ pub async fn make_request(
         // No compression, use original bytes
         String::from_utf8_lossy(&body_bytes).to_string()
     };
+    let process_ms = t3.elapsed().as_secs_f64() * 1000.0;
+
+    let body_size_bytes = body_text.len();
+    let total_ms = t0.elapsed().as_secs_f64() * 1000.0;
+
+    let timings = ResponseTimings {
+        prepare_ms,
+        dns_lookup_ms: 0.0,
+        tcp_connect_ms: 0.0,
+        tls_handshake_ms: 0.0,
+        ttfb_ms,
+        download_ms,
+        process_ms,
+        total_ms,
+    };
 
     // Construct and return the response object for the frontend
     Ok(BackendResponse {
@@ -134,7 +164,8 @@ pub async fn make_request(
         status_text,
         headers: response_headers,
         body_text,
-        response_time_ms,
-        response_size_bytes,
+        timings,
+        wire_size_bytes,
+        body_size_bytes,
     })
 }

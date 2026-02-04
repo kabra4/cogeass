@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import type { JSONSchema7 } from "json-schema";
 import type { ResponseHistoryEntry } from "@/store/types";
+import type { ResponseTimings } from "@/lib/http/HttpClient";
 import { Button } from "@/components/ui/button";
 import {
   Check,
@@ -54,6 +55,9 @@ interface PreviewsProps {
     bodyText: string;
     bodyJson: unknown;
     timestamp: number;
+    timings?: ResponseTimings;
+    wireSizeBytes?: number;
+    bodySizeBytes?: number;
     responseTimeMs?: number;
     responseSizeBytes?: number;
   } | null;
@@ -76,7 +80,7 @@ function formatResponseTime(ms: number): string {
   if (ms >= 1000) {
     return `${(ms / 1000).toFixed(2)}s`;
   }
-  return `${ms}ms`;
+  return `${ms.toFixed(2)}ms`;
 }
 
 function formatResponseSize(bytes: number): string {
@@ -212,14 +216,14 @@ function ResponseHistory({
                 <span className="text-muted-foreground text-xs">
                   {new Date(entry.timestamp).toLocaleString()}
                 </span>
-                {entry.response.responseTimeMs !== undefined && (
+                {(entry.response.timings?.totalMs ?? entry.response.responseTimeMs) !== undefined && (
                   <span className="text-xs text-muted-foreground">
-                    {formatResponseTime(entry.response.responseTimeMs)}
+                    {formatResponseTime(entry.response.timings?.totalMs ?? entry.response.responseTimeMs!)}
                   </span>
                 )}
-                {entry.response.responseSizeBytes !== undefined && (
+                {(entry.response.bodySizeBytes ?? entry.response.responseSizeBytes) !== undefined && (
                   <span className="text-xs text-muted-foreground">
-                    {formatResponseSize(entry.response.responseSizeBytes)}
+                    {formatResponseSize(entry.response.bodySizeBytes ?? entry.response.responseSizeBytes!)}
                   </span>
                 )}
               </div>
@@ -413,14 +417,19 @@ export default function Previews({
                     >
                       {resp.status} {resp.statusText}
                     </span>
-                    {resp.responseTimeMs !== undefined && (
+                    {(resp.timings?.totalMs ?? resp.responseTimeMs) !== undefined && (
                       <span className="text-foreground">
-                        • {formatResponseTime(resp.responseTimeMs)}
+                        • {formatResponseTime(resp.timings?.totalMs ?? resp.responseTimeMs!)}
                       </span>
                     )}
-                    {resp.responseSizeBytes !== undefined && (
+                    {(resp.bodySizeBytes ?? resp.responseSizeBytes) !== undefined && (
                       <span className="text-foreground">
-                        • {formatResponseSize(resp.responseSizeBytes)}
+                        • {formatResponseSize(resp.bodySizeBytes ?? resp.responseSizeBytes!)}
+                        {resp.wireSizeBytes !== undefined && resp.bodySizeBytes !== undefined && resp.wireSizeBytes !== resp.bodySizeBytes && (
+                          <span className="text-muted-foreground ml-1">
+                            ({formatResponseSize(resp.wireSizeBytes)} on wire)
+                          </span>
+                        )}
                       </span>
                     )}
                   </>

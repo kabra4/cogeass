@@ -5,6 +5,7 @@ import type {
   Workspace,
   WorkspaceData,
   AuthState,
+  Environment,
   SecurityScheme,
   HistoryItem,
   OperationRef,
@@ -231,7 +232,7 @@ export const createWorkspaceSlice: StateCreator<
       const data = await sqlite.getFullWorkspaceData(id);
       if (!data) return;
 
-      const environments: Record<string, any> = {};
+      const environments: Record<string, Environment> = {};
       for (const env of data.environments) {
         environments[env.id] = {
           id: env.id,
@@ -268,8 +269,8 @@ export const createWorkspaceSlice: StateCreator<
       }
 
       const authSchemes: Record<string, SecurityScheme> = {};
-      const authValues: Record<string, any> = {};
-      const authEnvironmentValues: Record<string, any> = {};
+      const authValues: Record<string, Record<string, string>> = {};
+      const authEnvironmentValues: Record<string, Record<string, Record<string, string>>> = {};
 
       for (const authValue of data.authValues) {
         try {

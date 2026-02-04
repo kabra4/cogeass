@@ -5,7 +5,7 @@ import { tauriHttpClient } from "./TauriHttpClient";
 const isTauri = () => {
   const result =
     typeof window !== "undefined" &&
-    (window as any).__TAURI_INTERNALS__ !== undefined;
+    "__TAURI_INTERNALS__" in window;
   console.log("[HTTP Client] Tauri detection:", result);
   return result;
 };

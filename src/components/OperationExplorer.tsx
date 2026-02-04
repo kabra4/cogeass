@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
+import type { OperationRef } from "@/store/types";
 import { Input } from "@/components/ui/input";
 
 import {
@@ -118,7 +119,7 @@ export default function OperationExplorer() {
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-1 pt-1">
-                {ops.map((o: any, index: number) => {
+                {ops.map((o: OperationRef, index: number) => {
                   const isActive =
                     selected &&
                     selected.method === o.method &&

@@ -1,5 +1,5 @@
 import SwaggerParser from "@apidevtools/swagger-parser";
-import type { OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
+import type { OpenAPI, OpenAPIV3, OpenAPIV3_1 } from "openapi-types";
 import converter from "swagger2openapi";
 import { saveSpec } from "@/lib/storage/sqliteRepository";
 import { invoke } from "@tauri-apps/api/core";
@@ -9,7 +9,7 @@ export type DerefSpec = OpenAPIV3.Document | OpenAPIV3_1.Document;
 
 const isTauri = () =>
   typeof window !== "undefined" &&
-  (window as any).__TAURI_INTERNALS__ !== undefined;
+  "__TAURI_INTERNALS__" in window;
 
 /**
  * Loads and processes an OpenAPI specification from a URL or File object.
@@ -24,7 +24,7 @@ export async function loadSpec(
   input: string | File
 ): Promise<{ spec: DerefSpec; id: string; baseUrl: string }> {
   try {
-    let specObject: any;
+    let specObject: OpenAPI.Document;
     let baseUrl: string | undefined;
 
     const isHttpUrl =
@@ -40,11 +40,11 @@ export async function loadSpec(
         });
         console.log("Spec fetched from backend successfully");
         try {
-          specObject = JSON.parse(specContent);
+          specObject = JSON.parse(specContent) as OpenAPI.Document;
           console.log("Parsed as JSON");
-        } catch (e) {
+        } catch {
           // Fallback to YAML parsing if JSON fails
-          specObject = yaml.load(specContent);
+          specObject = yaml.load(specContent) as OpenAPI.Document;
           console.log("Parsed as YAML");
         }
         baseUrl = input;
@@ -68,7 +68,7 @@ export async function loadSpec(
 
     let specToProcess = specObject;
 
-    if (specToProcess.swagger === "2.0") {
+    if ("swagger" in specToProcess && specToProcess.swagger === "2.0") {
       console.log("Detected Swagger 2.0 spec, attempting conversion...");
       try {
         const { openapi } = await converter.convertObj(specToProcess, {

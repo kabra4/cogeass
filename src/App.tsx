@@ -132,7 +132,7 @@ export default function App() {
                 toast.error(
                   "Failed to parse stored specification. Resetting..."
                 );
-                // @ts-expect-error setSpec handles nulls
+
                 setSpec(null, null, null);
               }
             } else {
@@ -140,14 +140,12 @@ export default function App() {
                 "Spec ID present but not found in database:",
                 runtimeSpecId
               );
-              // @ts-expect-error setSpec handles nulls
               setSpec(null, null, null);
               setOperations([]);
             }
           }
         } else {
           if (!cancelled) {
-            // @ts-expect-error setSpec handles nulls
             setSpec(null, null, null);
             setOperations([]);
           }
@@ -156,7 +154,6 @@ export default function App() {
         if (!cancelled) {
           console.error("Failed loading spec for workspace:", e);
           toast.error("Failed to load workspace schema.");
-          // @ts-expect-error setSpec handles nulls
           setSpec(null, null, null);
           setOperations([]);
         }

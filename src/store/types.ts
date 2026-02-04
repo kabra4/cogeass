@@ -19,7 +19,7 @@ export interface SpecSlice {
   specId: string | null;
   specUrl: string | null; // URL or file name used to load the spec
   operations: OperationRef[];
-  setSpec: (spec: DerefSpec, id: string, url?: string) => void;
+  setSpec: (spec: DerefSpec | null, id: string | null, url?: string | null) => void;
   setOperations: (ops: OperationRef[]) => void;
 }
 

@@ -2,15 +2,18 @@ import Editor from "@monaco-editor/react";
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import type { JSONSchema7 } from "json-schema";
+import type { ResponseHistoryEntry } from "@/store/types";
 import { Button } from "@/components/ui/button";
 import {
   Check,
+  Clock,
   Copy,
   Loader2,
   FileJson,
   Terminal,
   ArrowLeftRight,
   List,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -28,8 +31,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
-type TabType = "body" | "curl" | "response" | "headers";
+type TabType = "body" | "curl" | "response" | "headers" | "timeline";
 
 interface PreviewsProps {
   bodyData: Record<string, unknown>;
@@ -51,6 +60,8 @@ interface PreviewsProps {
   isLoading?: boolean;
   activeTab?: TabType;
   onTabChange?: (tab: TabType) => void;
+  responseHistory?: ResponseHistoryEntry[];
+  onClearHistory?: () => void;
 }
 
 function safeStringify(v: unknown, spaces = 2): string {
@@ -156,6 +167,90 @@ function HeadersTable({ headers }: { headers: Record<string, string> }) {
   );
 }
 
+function ResponseTimeline({
+  entries,
+  onClear,
+}: {
+  entries: ResponseHistoryEntry[];
+  onClear?: () => void;
+}) {
+  const { resolvedTheme } = useTheme();
+
+  if (entries.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        No response history yet. Send a request to start recording.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-auto">
+      {onClear && entries.length > 0 && (
+        <div className="flex justify-end px-4 pt-2">
+          <Button variant="ghost" size="sm" onClick={onClear}>
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear
+          </Button>
+        </div>
+      )}
+      <Accordion type="single" collapsible className="px-4">
+        {entries.map((entry) => (
+          <AccordionItem key={entry.id} value={String(entry.id)}>
+            <AccordionTrigger className="py-3">
+              <div className="flex items-center gap-3 text-sm">
+                <span
+                  className={cn(
+                    "font-semibold font-mono",
+                    entry.response.status >= 200 &&
+                      entry.response.status < 300
+                      ? "text-green-600 dark:text-green-500"
+                      : "text-red-600 dark:text-red-500"
+                  )}
+                >
+                  {entry.response.status}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {new Date(entry.timestamp).toLocaleString()}
+                </span>
+                {entry.response.responseTimeMs !== undefined && (
+                  <span className="text-xs text-muted-foreground">
+                    {formatResponseTime(entry.response.responseTimeMs)}
+                  </span>
+                )}
+                {entry.response.responseSizeBytes !== undefined && (
+                  <span className="text-xs text-muted-foreground">
+                    {formatResponseSize(entry.response.responseSizeBytes)}
+                  </span>
+                )}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="border rounded-md overflow-hidden">
+                <Editor
+                  height="200px"
+                  defaultLanguage="json"
+                  value={
+                    entry.response.bodyJson
+                      ? safeStringify(entry.response.bodyJson, 2)
+                      : entry.response.bodyText
+                  }
+                  options={{
+                    readOnly: true,
+                    minimap: { enabled: false },
+                    wordWrap: "on",
+                    scrollBeyondLastLine: false,
+                  }}
+                  theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
+  );
+}
+
 export default function Previews({
   bodyData,
   bodySchema,
@@ -164,6 +259,8 @@ export default function Previews({
   isLoading = false,
   activeTab: controlledActiveTab,
   onTabChange,
+  responseHistory,
+  onClearHistory,
 }: PreviewsProps) {
   const [internalActiveTab, setInternalActiveTab] = useState<TabType>("body");
 
@@ -225,10 +322,10 @@ export default function Previews({
         type === "body"
           ? "Body"
           : type === "curl"
-          ? "cURL"
-          : type === "headers"
-          ? "Headers"
-          : "Response";
+            ? "cURL"
+            : type === "headers"
+              ? "Headers"
+              : "Response";
       toast.success(`${label} copied to clipboard`);
       if (type === "body") {
         setCopyBodySuccess(true);
@@ -276,6 +373,14 @@ export default function Previews({
       content: headersValue,
       language: "plaintext",
       copySuccess: copyHeadersSuccess,
+    },
+    {
+      id: "timeline" as TabType,
+      label: "Timeline",
+      icon: Clock,
+      content: "",
+      language: "json",
+      copySuccess: false,
     },
   ];
 
@@ -329,7 +434,12 @@ export default function Previews({
 
         {/* Content area */}
         <div className="relative flex-1 min-h-0">
-          {activeTab === "headers" ? (
+          {activeTab === "timeline" ? (
+            <ResponseTimeline
+              entries={responseHistory ?? []}
+              onClear={onClearHistory}
+            />
+          ) : activeTab === "headers" ? (
             <div className="h-full relative">
               <HeadersTable headers={resp?.headers || {}} />
               <Button

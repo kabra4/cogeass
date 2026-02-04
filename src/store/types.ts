@@ -127,6 +127,22 @@ export interface HistorySlice {
   addToHistory: (op: OperationRef) => void;
 }
 
+export type ResponseHistoryEntry = {
+  id: number;
+  response: NonNullable<OperationState["response"]>;
+  timestamp: number;
+};
+
+export interface ResponseHistorySlice {
+  responseHistory: Record<string, ResponseHistoryEntry[]>;
+  loadResponseHistory: (operationKey: string) => Promise<void>;
+  addResponseHistoryEntry: (
+    operationKey: string,
+    response: NonNullable<OperationState["response"]>
+  ) => Promise<void>;
+  clearResponseHistory: (operationKey: string) => Promise<void>;
+}
+
 // Persisted per-workspace data
 // Note: operationState is NOT persisted in localStorage anymore
 // It's stored in IndexedDB and lazy-loaded per operation
@@ -169,4 +185,5 @@ export type AppState = SpecSlice &
   AuthSlice &
   EnvironmentSlice &
   WorkspaceSlice &
-  HistorySlice;
+  HistorySlice &
+  ResponseHistorySlice;

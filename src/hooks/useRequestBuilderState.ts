@@ -19,6 +19,8 @@ const useEnvironments = () => useAppStore((s) => s.environments);
 const useActiveEnvironmentId = () => useAppStore((s) => s.activeEnvironmentId);
 const useGlobalHeaders = () => useAppStore((s) => s.globalHeaders);
 const useAddToHistory = () => useAppStore((s) => s.addToHistory);
+const useAddResponseHistoryEntry = () =>
+  useAppStore((s) => s.addResponseHistoryEntry);
 
 export function useRequestBuilderState() {
   const spec = useAppStore((s) => s.spec);
@@ -28,6 +30,7 @@ export function useRequestBuilderState() {
   const setOperationState = useAppStore((s) => s.setOperationState);
   const setOperationResponse = useAppStore((s) => s.setOperationResponse);
   const addToHistory = useAddToHistory();
+  const addResponseHistoryEntry = useAddResponseHistoryEntry();
   const authState = useAuthState();
   const environments = useEnvironments();
   const activeEnvironmentId = useActiveEnvironmentId();
@@ -221,7 +224,7 @@ export function useRequestBuilderState() {
 
       // Only set response if this request wasn't aborted
       if (!abortController.signal.aborted) {
-        setOperationResponse(operationKey, {
+        const responseData = {
           status: r.status,
           statusText: r.statusText,
           headers: r.headers,
@@ -230,7 +233,9 @@ export function useRequestBuilderState() {
           timestamp: Date.now(),
           responseTimeMs: r.responseTimeMs,
           responseSizeBytes: r.responseSizeBytes,
-        });
+        };
+        setOperationResponse(operationKey, responseData);
+        addResponseHistoryEntry(operationKey, responseData);
 
         // Add to history after successful request
         if (selected) {
@@ -241,7 +246,7 @@ export function useRequestBuilderState() {
       // Only handle errors if not aborted
       if (!abortController.signal.aborted) {
         console.error("Request failed:", error);
-        setOperationResponse(operationKey, {
+        const errorResponseData = {
           status: 500,
           statusText: "Request Failed",
           headers: {},
@@ -250,7 +255,9 @@ export function useRequestBuilderState() {
             error: error instanceof Error ? error.message : "Unknown error",
           },
           timestamp: Date.now(),
-        });
+        };
+        setOperationResponse(operationKey, errorResponseData);
+        addResponseHistoryEntry(operationKey, errorResponseData);
       }
     } finally {
       // Only set loading to false if this request wasn't aborted
@@ -270,6 +277,7 @@ export function useRequestBuilderState() {
     appliedAuth,
     operationKey,
     setOperationResponse,
+    addResponseHistoryEntry,
     selected,
     addToHistory,
   ]);
@@ -318,6 +326,7 @@ export function useRequestBuilderState() {
 
   return {
     // State and Data
+    operationKey,
     spec,
     op,
     method,

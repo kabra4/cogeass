@@ -139,5 +139,20 @@ pub fn get_migrations() -> Vec<Migration> {
             sql: "ALTER TABLE workspaces ADD COLUMN spec_url TEXT;",
             kind: MigrationKind::Up,
         },
+        // Migration 12: Response history table
+        Migration {
+            version: 12,
+            description: "create response_history table",
+            sql: "CREATE TABLE response_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workspace_id TEXT NOT NULL,
+                operation_key TEXT NOT NULL,
+                response_json TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_response_history_lookup ON response_history(workspace_id, operation_key, timestamp DESC);",
+            kind: MigrationKind::Up,
+        },
     ]
 }

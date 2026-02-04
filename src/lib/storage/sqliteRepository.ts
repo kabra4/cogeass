@@ -16,6 +16,7 @@ import type {
   DbAuthValue,
   DbOperationState,
   DbHistoryEntry,
+  DbResponseHistoryEntry,
   InitialData,
   FullWorkspaceData,
 } from "@/types/backend";
@@ -570,4 +571,76 @@ export async function clearHistory(workspaceId: string): Promise<void> {
   await getDb().execute("DELETE FROM history WHERE workspace_id = ?", [
     workspaceId,
   ]);
+}
+
+// ============================================================================
+// RESPONSE HISTORY
+// ============================================================================
+
+const RESPONSE_HISTORY_LIMIT = 25;
+
+/**
+ * Add a response history entry and prune old entries beyond the limit.
+ */
+export async function addResponseHistoryEntry(
+  workspaceId: string,
+  operationKey: string,
+  responseJson: string
+): Promise<number> {
+  const timestamp = Date.now();
+  const result = await getDb().execute(
+    `INSERT INTO response_history (workspace_id, operation_key, response_json, timestamp)
+     VALUES (?, ?, ?, ?)`,
+    [workspaceId, operationKey, responseJson, timestamp]
+  );
+
+  // Prune: keep only the most recent entries per operation
+  await getDb().execute(
+    `DELETE FROM response_history
+     WHERE workspace_id = ? AND operation_key = ?
+     AND id NOT IN (
+       SELECT id FROM response_history
+       WHERE workspace_id = ? AND operation_key = ?
+       ORDER BY timestamp DESC
+       LIMIT ?
+     )`,
+    [
+      workspaceId,
+      operationKey,
+      workspaceId,
+      operationKey,
+      RESPONSE_HISTORY_LIMIT,
+    ]
+  );
+
+  return result.lastInsertId ?? 0;
+}
+
+/**
+ * Get response history for an operation (most recent first).
+ */
+export async function getResponseHistory(
+  workspaceId: string,
+  operationKey: string
+): Promise<DbResponseHistoryEntry[]> {
+  return getDb().select<DbResponseHistoryEntry[]>(
+    `SELECT * FROM response_history
+     WHERE workspace_id = ? AND operation_key = ?
+     ORDER BY timestamp DESC
+     LIMIT ?`,
+    [workspaceId, operationKey, RESPONSE_HISTORY_LIMIT]
+  );
+}
+
+/**
+ * Clear all response history for an operation.
+ */
+export async function clearResponseHistory(
+  workspaceId: string,
+  operationKey: string
+): Promise<void> {
+  await getDb().execute(
+    "DELETE FROM response_history WHERE workspace_id = ? AND operation_key = ?",
+    [workspaceId, operationKey]
+  );
 }

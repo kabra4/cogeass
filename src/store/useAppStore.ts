@@ -7,6 +7,7 @@ import { createAuthSlice } from "./authSlice";
 import { createEnvironmentSlice } from "./environmentSlice";
 import { createWorkspaceSlice } from "./workspaceSlice";
 import { createHistorySlice } from "./historySlice";
+import { createResponseHistorySlice } from "./responseHistorySlice";
 import type { AppState } from "./types";
 
 export const useAppStore = create<AppState>()(
@@ -19,6 +20,7 @@ export const useAppStore = create<AppState>()(
       ...createAuthSlice(set, get, api),
       ...createEnvironmentSlice(set, get, api),
       ...createHistorySlice(set, get, api),
+      ...createResponseHistorySlice(set, get, api),
     }),
     {
       name: "cogeass-storage",

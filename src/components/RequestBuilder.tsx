@@ -1,19 +1,21 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RequestForms from "./RequestForms";
 import Previews from "./Previews";
 import { useRequestBuilderState } from "@/hooks/useRequestBuilderState";
+import { useAppStore } from "@/store/useAppStore";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
 
-type TabType = "body" | "curl" | "response" | "headers";
+type TabType = "body" | "curl" | "response" | "headers" | "timeline";
 
 export default function RequestBuilder() {
   const [activePreviewTab, setActivePreviewTab] = useState<TabType>("body");
 
   const {
+    operationKey,
     spec,
     op,
     method,
@@ -36,6 +38,23 @@ export default function RequestBuilder() {
     onCustomHeaderDataChange,
     onBodyDataChange,
   } = useRequestBuilderState();
+
+  const responseHistoryRaw = useAppStore(
+    (s) => s.responseHistory[operationKey]
+  );
+  const responseHistory = useMemo(
+    () => responseHistoryRaw ?? [],
+    [responseHistoryRaw]
+  );
+  const loadResponseHistory = useAppStore((s) => s.loadResponseHistory);
+  const clearResponseHistory = useAppStore((s) => s.clearResponseHistory);
+
+  // Lazy-load response history when switching to timeline tab
+  useEffect(() => {
+    if (activePreviewTab === "timeline" && operationKey) {
+      loadResponseHistory(operationKey);
+    }
+  }, [activePreviewTab, operationKey, loadResponseHistory]);
 
   const handleSendWithTabSwitch = async () => {
     setActivePreviewTab("response");
@@ -88,6 +107,10 @@ export default function RequestBuilder() {
           isLoading={isLoading}
           activeTab={activePreviewTab}
           onTabChange={setActivePreviewTab}
+          responseHistory={responseHistory}
+          onClearHistory={() =>
+            operationKey && clearResponseHistory(operationKey)
+          }
         />
       </ResizablePanel>
     </ResizablePanelGroup>

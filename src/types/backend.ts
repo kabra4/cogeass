@@ -102,6 +102,18 @@ export interface DbHistoryEntry {
 }
 
 /**
+ * Table 9: response_history
+ * Stores historical responses for operations.
+ */
+export interface DbResponseHistoryEntry {
+  id: number;
+  workspace_id: string;
+  operation_key: string;
+  response_json: string; // JSON string of the response object
+  timestamp: number;
+}
+
+/**
  * Composite payload returned by get_full_workspace_data().
  * This is the primary data structure for workspace switching.
  */

@@ -4,12 +4,15 @@ import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Import } from "lucide-react";
+import { detectFormat } from "@/lib/import";
+import { ImportDialog } from "./import";
 
 export default function SpecLoader() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const setSpec = useAppStore((s) => s.setSpec);
   const setOps = useAppStore((s) => s.setOperations);
@@ -23,6 +26,18 @@ export default function SpecLoader() {
   async function doLoad(specInput: string | File) {
     setIsLoading(true);
     try {
+      // Check if file is an importable format (Postman, Insomnia, HAR)
+      if (specInput instanceof File) {
+        const content = await specInput.text();
+        const format = detectFormat(content);
+        if (format) {
+          // This is an importable format - use the import dialog
+          setIsImportOpen(true);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const { spec, id } = await loadSpec(specInput);
       const sourceUrl =
         typeof specInput === "string" ? specInput : specInput.name;
@@ -91,7 +106,7 @@ export default function SpecLoader() {
         ref={fileRef}
         type="file"
         className="hidden"
-        accept=".json,.yaml,.yml"
+        accept=".json,.yaml,.yml,.har"
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) doLoad(f);
@@ -100,6 +115,19 @@ export default function SpecLoader() {
       <Button disabled={isLoading} onClick={() => fileRef.current?.click()}>
         Upload
       </Button>
+      <Button
+        variant="outline"
+        disabled={isLoading}
+        onClick={() => setIsImportOpen(true)}
+        title="Import from Postman, Insomnia, or HAR"
+      >
+        <Import className="h-4 w-4" />
+      </Button>
+
+      <ImportDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+      />
     </div>
   );
 }

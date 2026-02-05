@@ -1,4 +1,4 @@
-import { ChevronDown, Edit3, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Edit3, Plus, Trash2, Import } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
+import { ImportDialog } from "./import";
 
 export function WorkspaceSelector() {
   const {
@@ -26,6 +27,7 @@ export function WorkspaceSelector() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const startRename = (id: string, currentName: string) => {
     setRenamingId(id);
@@ -105,6 +107,14 @@ export function WorkspaceSelector() {
             Create Workspace
           </DropdownMenuItem>
 
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => setIsImportOpen(true)}
+          >
+            <Import className="mr-2 h-4 w-4" />
+            Import Collection
+          </DropdownMenuItem>
+
           {renamingId && (
             <>
               <DropdownMenuSeparator />
@@ -134,6 +144,11 @@ export function WorkspaceSelector() {
       <CreateWorkspaceDialog
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
+      />
+
+      <ImportDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
       />
     </>
   );
